@@ -12,6 +12,7 @@
 extern crate alloc;
 
 pub mod attrs;
+pub mod callback;
 pub mod imports;
 pub mod lifetimes;
 pub mod option;
