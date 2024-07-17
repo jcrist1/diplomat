@@ -7,6 +7,6 @@ class OpaqueFunctionPointerTest {
     @Test
     fun testStuff() {
         val b = OpaqueFunctionPointer.call( 3)
-        println(b)
+        assertEquals(b, 10)
     }
 }

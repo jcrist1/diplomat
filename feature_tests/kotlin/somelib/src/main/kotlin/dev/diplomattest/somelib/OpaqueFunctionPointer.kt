@@ -7,15 +7,10 @@ import com.sun.jna.Pointer
 
 internal interface OpaqueFunctionPointerLib: Library {
     fun OpaqueFunctionPointer_destroy(handle: Pointer)
-    fun OpaqueFunctionPointer_call(opaqueFunctionPointerRef: Callback, y: Int): Int
     fun OpaqueFunctionPointer_test_call(value: Int, functionPointer: Callback): Int
-    interface sig_t : Callback {
+    interface DiplomatCallbackI32ToI32: Callback {
         fun invoke(signal: Int): Int
     }
-    //fun signal(sig: Int, fn: sig_t?): sig_t?
-//    companion object {
-//        const val SIGUSR1: Int = 30
-//    }
 }
 
 class OpaqueFunctionPointer internal constructor (
@@ -36,7 +31,7 @@ class OpaqueFunctionPointer internal constructor (
         internal val libClass: Class<OpaqueFunctionPointerLib> = OpaqueFunctionPointerLib::class.java
         internal val lib: OpaqueFunctionPointerLib = Native.load("somelib", libClass)
 
-        internal val callback: OpaqueFunctionPointerLib.sig_t = object : OpaqueFunctionPointerLib.sig_t {
+        internal val callback: OpaqueFunctionPointerLib.DiplomatCallbackI32ToI32 = object : OpaqueFunctionPointerLib.DiplomatCallbackI32ToI32{
             override fun invoke(input: Int): Int {
                 if (input % 2 == 0) {
                     return input /2
