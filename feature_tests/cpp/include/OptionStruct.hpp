@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
+#include <functional>
 #include <optional>
 #include "OptionOpaque.hpp"
 #include "OptionOpaqueChar.hpp"
@@ -29,7 +30,7 @@ inline diplomat::capi::OptionStruct OptionStruct::AsFFI() const {
     /* .a = */ a ? a->AsFFI() : nullptr,
     /* .b = */ b ? b->AsFFI() : nullptr,
     /* .c = */ c,
-    /* .d = */ d ? d->AsFFI() : nullptr,
+    /* .d = */ d->AsFFI(),
   };
 }
 

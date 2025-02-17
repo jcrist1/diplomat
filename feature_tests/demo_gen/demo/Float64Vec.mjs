@@ -1,14 +1,10 @@
 import { Float64Vec } from "../../js/api/index.mjs"
-export function toString(v) {
-    return (function (...args) { return args[0].toString(...args.slice(1)) }).apply(
-        null,
-        [
-            Float64Vec.newFromOwned.apply(
-                null,
-                [
-                    v
-                ]
-            )
-        ]
-    );
+export function toString(float64VecV) {
+    
+    let float64Vec = new Float64Vec(float64VecV);
+    
+    let out = float64Vec.toString();
+    
+
+    return out;
 }

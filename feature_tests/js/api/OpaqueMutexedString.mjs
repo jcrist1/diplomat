@@ -8,6 +8,7 @@ const OpaqueMutexedString_box_destroy_registry = new FinalizationRegistry((ptr) 
 });
 
 export class OpaqueMutexedString {
+    
     // Internal ptr reference:
     #ptr = null;
 
@@ -15,7 +16,7 @@ export class OpaqueMutexedString {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    constructor(symbol, ptr, selfEdge) {
+    #internalConstructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("OpaqueMutexedString is an Opaque type. You cannot call its constructor.");
             return;
@@ -28,8 +29,9 @@ export class OpaqueMutexedString {
         if (this.#selfEdge.length === 0) {
             OpaqueMutexedString_box_destroy_registry.register(this, this.#ptr);
         }
+        
+        return this;
     }
-
     get ffiValue() {
         return this.#ptr;
     }
@@ -125,5 +127,19 @@ export class OpaqueMutexedString {
         }
         
         finally {}
+    }
+
+    toUnsignedFromUnsigned(input) {
+        const result = wasm.OpaqueMutexedString_to_unsigned_from_unsigned(this.ffiValue, input);
+    
+        try {
+            return result;
+        }
+        
+        finally {}
+    }
+
+    constructor(symbol, ptr, selfEdge) {
+        return this.#internalConstructor(...arguments)
     }
 }

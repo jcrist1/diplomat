@@ -16,6 +16,7 @@ const FixedDecimalFormatter_box_destroy_registry = new FinalizationRegistry((ptr
 });
 
 export class FixedDecimalFormatter {
+    
     // Internal ptr reference:
     #ptr = null;
 
@@ -23,7 +24,7 @@ export class FixedDecimalFormatter {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    constructor(symbol, ptr, selfEdge) {
+    #internalConstructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("FixedDecimalFormatter is an Opaque type. You cannot call its constructor.");
             return;
@@ -36,8 +37,9 @@ export class FixedDecimalFormatter {
         if (this.#selfEdge.length === 0) {
             FixedDecimalFormatter_box_destroy_registry.register(this, this.#ptr);
         }
+        
+        return this;
     }
-
     get ffiValue() {
         return this.#ptr;
     }
@@ -47,7 +49,7 @@ export class FixedDecimalFormatter {
         
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
-        const result = wasm.icu4x_FixedDecimalFormatter_try_new_mv1(diplomatReceive.buffer, locale.ffiValue, provider.ffiValue, ...options._intoFFI(functionCleanupArena, {}));
+        const result = wasm.icu4x_FixedDecimalFormatter_try_new_mv1(diplomatReceive.buffer, locale.ffiValue, provider.ffiValue, ...FixedDecimalFormatterOptions._fromSuppliedValue(diplomatRuntime.internalConstructor, options)._intoFFI(functionCleanupArena, {}));
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -74,5 +76,9 @@ export class FixedDecimalFormatter {
         finally {
             write.free();
         }
+    }
+
+    constructor(symbol, ptr, selfEdge) {
+        return this.#internalConstructor(...arguments)
     }
 }

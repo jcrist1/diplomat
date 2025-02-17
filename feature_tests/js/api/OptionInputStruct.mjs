@@ -3,32 +3,45 @@ import { OptionEnum } from "./OptionEnum.mjs"
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-export class OptionInputStruct {
 
+
+export class OptionInputStruct {
+    
     #a;
+    
     get a()  {
         return this.#a;
-    }
+    } 
     set a(value) {
         this.#a = value;
     }
-
+    
     #b;
+    
     get b()  {
         return this.#b;
-    }
+    } 
     set b(value) {
         this.#b = value;
     }
-
+    
     #c;
+    
     get c()  {
         return this.#c;
-    }
+    } 
     set c(value) {
         this.#c = value;
     }
-    constructor(structObj) {
+    
+    /** Create `OptionInputStruct` from an object that contains all of `OptionInputStruct`s fields.
+    * Optional fields do not need to be included in the provided object.
+    */
+    static fromFields(structObj) {
+        return new OptionInputStruct(structObj);
+    }
+
+    #internalConstructor(structObj) {
         if (typeof structObj !== "object") {
             throw new Error("OptionInputStruct's constructor takes an object of OptionInputStruct's fields.");
         }
@@ -51,6 +64,7 @@ export class OptionInputStruct {
             this.#c = null;
         }
 
+        return this;
     }
 
     // Return this struct in FFI function friendly format.
@@ -61,6 +75,18 @@ export class OptionInputStruct {
         appendArrayMap
     ) {
         return [...diplomatRuntime.optionToArgsForCalling(this.#a, 1, 1, false, (arrayBuffer, offset, jsValue) => [diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 0, jsValue, Uint8Array)]), /* [2 x i8] padding */ 0, 0 /* end padding */, ...diplomatRuntime.optionToArgsForCalling(this.#b, 4, 4, false, (arrayBuffer, offset, jsValue) => [diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 0, jsValue, Uint32Array)]), ...diplomatRuntime.optionToArgsForCalling(this.#c, 4, 4, false, (arrayBuffer, offset, jsValue) => [diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 0, jsValue.ffiValue, Int32Array)])]
+    }
+
+    static _fromSuppliedValue(internalConstructor, obj) {
+        if (internalConstructor !== diplomatRuntime.internalConstructor) {
+            throw new Error("_fromSuppliedValue cannot be called externally.");
+        }
+
+        if (obj instanceof OptionInputStruct) {
+            return obj;
+        }
+
+        return OptionInputStruct.fromFields(obj);
     }
 
     _writeToArrayBuffer(
@@ -83,7 +109,7 @@ export class OptionInputStruct {
         if (internalConstructor !== diplomatRuntime.internalConstructor) {
             throw new Error("OptionInputStruct._fromFFI is not meant to be called externally. Please use the default constructor.");
         }
-        var structObj = {};
+        let structObj = {};
         const aDeref = ptr;
         structObj.a = diplomatRuntime.readOption(wasm, aDeref, 1, (wasm, offset) => { const deref = (new Uint8Array(wasm.memory.buffer, offset, 1))[0]; return deref });
         const bDeref = ptr + 4;
@@ -91,6 +117,10 @@ export class OptionInputStruct {
         const cDeref = ptr + 12;
         structObj.c = diplomatRuntime.readOption(wasm, cDeref, 4, (wasm, offset) => { const deref = diplomatRuntime.enumDiscriminant(wasm, offset); return new OptionEnum(diplomatRuntime.internalConstructor, deref) });
 
-        return new OptionInputStruct(structObj, internalConstructor);
+        return new OptionInputStruct(structObj);
+    }
+
+    constructor(structObj) {
+        return this.#internalConstructor(...arguments)
     }
 }

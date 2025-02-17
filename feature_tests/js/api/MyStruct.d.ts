@@ -3,7 +3,7 @@ import type { MyEnum } from "./MyEnum"
 import type { MyZst } from "./MyZst"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
-type MyStruct_Obj = {
+type MyStruct_obj = {
     a: number;
     b: boolean;
     c: number;
@@ -13,35 +13,42 @@ type MyStruct_Obj = {
     g: MyEnum;
 };
 
+
+
 export class MyStruct {
-
-    get a() : number;
+    
+    get a() : number; 
     set a(value: number); 
-
-    get b() : boolean;
+    
+    get b() : boolean; 
     set b(value: boolean); 
-
-    get c() : number;
+    
+    get c() : number; 
     set c(value: number); 
-
-    get d() : bigint;
+    
+    get d() : bigint; 
     set d(value: bigint); 
-
-    get e() : number;
+    
+    get e() : number; 
     set e(value: number); 
-
-    get f() : codepoint;
+    
+    get f() : codepoint; 
     set f(value: codepoint); 
-
-    get g() : MyEnum;
+    
+    get g() : MyEnum; 
     set g(value: MyEnum); 
-    constructor(structObj : MyStruct_Obj);
+    
+    /** Create `MyStruct` from an object that contains all of `MyStruct`s fields.
+    * Optional fields do not need to be included in the provided object.
+    */
+    static fromFields(structObj : MyStruct_obj) : MyStruct;
 
-    static new_(): MyStruct;
 
     intoA(): number;
 
     static returnsZstResult(): void;
 
     static failsZstResult(): void;
+
+    constructor();
 }

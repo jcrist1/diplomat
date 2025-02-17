@@ -38,12 +38,12 @@ class OptionString internal constructor (
             val handle = returnVal ?: return null
             val returnOpaque = OptionString(handle, selfEdges)
             CLEANER.register(returnOpaque, OptionString.OptionStringCleaner(handle, OptionString.lib));
-            diplomatStrMem.close()
+            if (diplomatStrMem != null) diplomatStrMem.close()
             return returnOpaque
         }
     }
     
-    fun write(): Res<String, Unit> {
+    fun write(): Result<String> {
         val write = DW.lib.diplomat_buffer_write_create(0)
         val returnVal = lib.OptionString_write(handle, write);
         if (returnVal.isOk == 1.toByte()) {
@@ -51,7 +51,7 @@ class OptionString internal constructor (
             val returnString = DW.writeToString(write)
             return returnString.ok()
         } else {
-            return Err(Unit)
+            return UnitError().err()
         }
     }
     

@@ -10,6 +10,7 @@ const OptionOpaque_box_destroy_registry = new FinalizationRegistry((ptr) => {
 });
 
 export class OptionOpaque {
+    
     // Internal ptr reference:
     #ptr = null;
 
@@ -17,7 +18,7 @@ export class OptionOpaque {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    constructor(symbol, ptr, selfEdge) {
+    #internalConstructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("OptionOpaque is an Opaque type. You cannot call its constructor.");
             return;
@@ -30,8 +31,9 @@ export class OptionOpaque {
         if (this.#selfEdge.length === 0) {
             OptionOpaque_box_destroy_registry.register(this, this.#ptr);
         }
+        
+        return this;
     }
-
     get ffiValue() {
         return this.#ptr;
     }
@@ -225,7 +227,7 @@ export class OptionOpaque {
         
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 21, 4, true);
         
-        const result = wasm.OptionOpaque_accepts_option_input_struct(diplomatReceive.buffer, ...diplomatRuntime.optionToArgsForCalling(arg, 20, 4, false, (arrayBuffer, offset, jsValue) => [jsValue._writeToArrayBuffer(arrayBuffer, offset + 0, functionCleanupArena, {})]));
+        const result = wasm.OptionOpaque_accepts_option_input_struct(diplomatReceive.buffer, ...diplomatRuntime.optionToArgsForCalling(arg, 20, 4, false, (arrayBuffer, offset, jsValue) => [OptionInputStruct._fromSuppliedValue(diplomatRuntime.internalConstructor, jsValue)._writeToArrayBuffer(arrayBuffer, offset + 0, functionCleanupArena, {})]));
     
         try {
             if (!diplomatReceive.resultFlag) {
@@ -253,5 +255,9 @@ export class OptionOpaque {
         finally {
             diplomatReceive.free();
         }
+    }
+
+    constructor(symbol, ptr, selfEdge) {
+        return this.#internalConstructor(...arguments)
     }
 }

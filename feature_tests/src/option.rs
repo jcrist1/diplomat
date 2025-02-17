@@ -35,7 +35,7 @@ pub mod ffi {
         a: Option<Box<OptionOpaque>>,
         b: Option<Box<OptionOpaqueChar>>,
         c: u32,
-        d: Option<Box<OptionOpaque>>,
+        d: Box<OptionOpaque>,
     }
 
     #[diplomat::attr(not(supports = option), disable)]
@@ -101,7 +101,7 @@ pub mod ffi {
                 a: Some(Box::new(OptionOpaque(101))),
                 b: Some(Box::new(OptionOpaqueChar('餐'))),
                 c: 904,
-                d: Some(Box::new(OptionOpaque(926535))),
+                d: Box::new(OptionOpaque(926535)),
             }
         }
 
@@ -110,7 +110,7 @@ pub mod ffi {
                 a: None,
                 b: None,
                 c: 908,
-                d: None,
+                d: Box::new(OptionOpaque(926535)),
             }
         }
 
@@ -144,6 +144,21 @@ pub mod ffi {
                 b: None.into(),
                 c: Some(OptionEnum::Bar).into(),
             }
+        }
+
+        #[diplomat::attr(any(not(supports = option), not(any(c, cpp))), disable)]
+        pub fn accepts_option_str(arg: Option<&str>) -> usize {
+            arg.unwrap_or_default().len()
+        }
+
+        #[diplomat::attr(any(not(supports = option), not(any(c, cpp))), disable)]
+        pub fn accepts_option_str_slice(arg: Option<&[DiplomatStrSlice]>) -> bool {
+            arg.is_some()
+        }
+
+        #[diplomat::attr(any(not(supports = option), not(any(c, cpp))), disable)]
+        pub fn accepts_option_primitive(arg: Option<&[u32]>) -> i64 {
+            arg.map(|v| v.iter().sum::<u32>().into()).unwrap_or(-1)
         }
     }
 

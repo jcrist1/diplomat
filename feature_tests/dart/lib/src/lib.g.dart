@@ -18,12 +18,15 @@ part 'BorrowedFieldsWithBounds.g.dart';
 part 'ContiguousEnum.g.dart';
 part 'CyclicStructA.g.dart';
 part 'CyclicStructB.g.dart';
+part 'CyclicStructC.g.dart';
+part 'DefaultEnum.g.dart';
 part 'ErrorEnum.g.dart';
 part 'ErrorStruct.g.dart';
 part 'Float64Vec.g.dart';
 part 'Foo.g.dart';
 part 'ImportedStruct.g.dart';
 part 'MyEnum.g.dart';
+part 'MyOpaqueEnum.g.dart';
 part 'MyString.g.dart';
 part 'MyStruct.g.dart';
 part 'MyZst.g.dart';
@@ -44,6 +47,8 @@ part 'RenamedComparable.g.dart';
 part 'RenamedMyIndexer.g.dart';
 part 'RenamedMyIterable.g.dart';
 part 'RenamedMyIterator.g.dart';
+part 'RenamedNested.g.dart';
+part 'RenamedNested2.g.dart';
 part 'RenamedOpaqueIterable.g.dart';
 part 'RenamedOpaqueIterator.g.dart';
 part 'ResultOpaque.g.dart';
@@ -114,6 +119,31 @@ class _FinalizedArena {
     for (final edge in lifetimeAppendArray) {
       edge.add(this);
     }
+  }
+}
+
+final class _ResultCyclicStructAFfiVoidUnion extends ffi.Union {
+  external _CyclicStructAFfi ok;
+
+}
+
+final class _ResultCyclicStructAFfiVoid extends ffi.Struct {
+  external _ResultCyclicStructAFfiVoidUnion union;
+
+  @ffi.Bool()
+  external bool isOk;
+
+  
+  factory _ResultCyclicStructAFfiVoid.ok(_CyclicStructAFfi val) {
+    final struct = ffi.Struct.create<_ResultCyclicStructAFfiVoid>();
+    struct.isOk = true;
+    struct.union.ok = val;
+    return struct;
+  }
+  factory _ResultCyclicStructAFfiVoid.err() {
+    final struct = ffi.Struct.create<_ResultCyclicStructAFfiVoid>();
+    struct.isOk = false;
+    return struct;
   }
 }
 

@@ -4,64 +4,81 @@ import { MyZst } from "./MyZst.mjs"
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-export class MyStruct {
 
+
+export class MyStruct {
+    
     #a;
+    
     get a()  {
         return this.#a;
-    }
+    } 
     set a(value) {
         this.#a = value;
     }
-
+    
     #b;
+    
     get b()  {
         return this.#b;
-    }
+    } 
     set b(value) {
         this.#b = value;
     }
-
+    
     #c;
+    
     get c()  {
         return this.#c;
-    }
+    } 
     set c(value) {
         this.#c = value;
     }
-
+    
     #d;
+    
     get d()  {
         return this.#d;
-    }
+    } 
     set d(value) {
         this.#d = value;
     }
-
+    
     #e;
+    
     get e()  {
         return this.#e;
-    }
+    } 
     set e(value) {
         this.#e = value;
     }
-
+    
     #f;
+    
     get f()  {
         return this.#f;
-    }
+    } 
     set f(value) {
         this.#f = value;
     }
-
+    
     #g;
+    
     get g()  {
         return this.#g;
-    }
+    } 
     set g(value) {
         this.#g = value;
     }
-    constructor(structObj) {
+    
+    /** Create `MyStruct` from an object that contains all of `MyStruct`s fields.
+    * Optional fields do not need to be included in the provided object.
+    */
+    static fromFields(structObj) {
+        return new MyStruct(diplomatRuntime.exposeConstructor, structObj);
+    }
+
+    #internalConstructor(structObj) {
         if (typeof structObj !== "object") {
             throw new Error("MyStruct's constructor takes an object of MyStruct's fields.");
         }
@@ -108,6 +125,7 @@ export class MyStruct {
             throw new Error("Missing required field g.");
         }
 
+        return this;
     }
 
     // Return this struct in FFI function friendly format.
@@ -118,6 +136,18 @@ export class MyStruct {
         appendArrayMap
     ) {
         return [this.#a, this.#b, this.#c, /* [5 x i8] padding */ 0, 0, 0, 0, 0 /* end padding */, this.#d, this.#e, this.#f, this.#g.ffiValue, /* [1 x i32] padding */ 0 /* end padding */]
+    }
+
+    static _fromSuppliedValue(internalConstructor, obj) {
+        if (internalConstructor !== diplomatRuntime.internalConstructor) {
+            throw new Error("_fromSuppliedValue cannot be called externally.");
+        }
+
+        if (obj instanceof MyStruct) {
+            return obj;
+        }
+
+        return MyStruct.fromFields(obj);
     }
 
     _writeToArrayBuffer(
@@ -144,7 +174,7 @@ export class MyStruct {
         if (internalConstructor !== diplomatRuntime.internalConstructor) {
             throw new Error("MyStruct._fromFFI is not meant to be called externally. Please use the default constructor.");
         }
-        var structObj = {};
+        let structObj = {};
         const aDeref = (new Uint8Array(wasm.memory.buffer, ptr, 1))[0];
         structObj.a = aDeref;
         const bDeref = (new Uint8Array(wasm.memory.buffer, ptr + 1, 1))[0] === 1;
@@ -160,10 +190,10 @@ export class MyStruct {
         const gDeref = diplomatRuntime.enumDiscriminant(wasm, ptr + 24);
         structObj.g = new MyEnum(diplomatRuntime.internalConstructor, gDeref);
 
-        return new MyStruct(structObj, internalConstructor);
+        return new MyStruct(diplomatRuntime.exposeConstructor, structObj);
     }
 
-    static new_() {
+    #defaultConstructor() {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 32, 8, false);
         
         const result = wasm.MyStruct_new(diplomatReceive.buffer);
@@ -196,7 +226,7 @@ export class MyStruct {
     
         try {
             if (result !== 1) {
-                const cause = new MyZst({}, diplomatRuntime.internalConstructor);
+                const cause = MyZst.fromFields({}, diplomatRuntime.internalConstructor);
                 throw new globalThis.Error('MyZst', { cause });
             }
     
@@ -210,12 +240,22 @@ export class MyStruct {
     
         try {
             if (result !== 1) {
-                const cause = new MyZst({}, diplomatRuntime.internalConstructor);
+                const cause = MyZst.fromFields({}, diplomatRuntime.internalConstructor);
                 throw new globalThis.Error('MyZst', { cause });
             }
     
         }
         
         finally {}
+    }
+
+    constructor() {
+        if (arguments[0] === diplomatRuntime.exposeConstructor) {
+            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
+        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
+            return this.#internalConstructor(...arguments);
+        } else {
+            return this.#defaultConstructor(...arguments);
+        }
     }
 }

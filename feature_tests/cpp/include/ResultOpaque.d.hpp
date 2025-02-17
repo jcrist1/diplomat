@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
+#include <functional>
 #include <optional>
 #include "diplomat_runtime.hpp"
 
@@ -37,6 +38,8 @@ public:
   inline static diplomat::result<int32_t, std::monostate> new_int(int32_t i);
 
   inline static diplomat::result<ErrorEnum, std::unique_ptr<ResultOpaque>> new_in_enum_err(int32_t i);
+
+  inline diplomat::result<ResultOpaque&, diplomat::Utf8Error> takes_str(std::string_view _v);
 
   inline void assert_integer(int32_t i) const;
 

@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
+#include <functional>
 #include <optional>
 #include "diplomat_runtime.hpp"
 
@@ -24,6 +25,8 @@ public:
   inline static diplomat::result<std::unique_ptr<MyString>, diplomat::Utf8Error> new_unsafe(std::string_view v);
 
   inline static std::unique_ptr<MyString> new_owned(std::string_view v);
+
+  inline static std::unique_ptr<MyString> new_from_first(diplomat::span<const std::string_view> v);
 
   inline void set_str(std::string_view new_str);
 

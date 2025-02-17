@@ -28,3 +28,26 @@ npm = which npm
 ```
 
 You also don't have to use Cargo make. VS Code tasks also help me circumvent this kind of stuff. But I try to avoid calling npm directly if possible, since everybody should ideally be using the same build tools.
+
+## CRLF vs. LF
+### Random Whitespacing in Generation (core.autocrlf)
+Git, in its attempts to be helpful, created a bunch of extra whitespaces in converting CRLF to LF. Which led to differences from the CI on Windows.
+
+So these commands help get rid of that:
+
+```bash
+# Disable Git's CRLF to LF conversion:
+git config core.autocrlf false
+# Reset cached files to remove associations
+git rm --cached -r .
+git reset --hard
+```
+
+Or you can add this line to `.git/config`:
+
+```
+[core]
+	autocrlf = false
+```
+
+And reset the cache.

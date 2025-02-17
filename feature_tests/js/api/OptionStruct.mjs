@@ -4,32 +4,35 @@ import { OptionOpaqueChar } from "./OptionOpaqueChar.mjs"
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-export class OptionStruct {
 
+
+export class OptionStruct {
+    
     #a;
+    
     get a()  {
         return this.#a;
     }
     
-
     #b;
+    
     get b()  {
         return this.#b;
     }
     
-
     #c;
+    
     get c()  {
         return this.#c;
     }
     
-
     #d;
+    
     get d()  {
         return this.#d;
     }
     
-    constructor(structObj, internalConstructor) {
+    #internalConstructor(structObj, internalConstructor) {
         if (typeof structObj !== "object") {
             throw new Error("OptionStruct's constructor takes an object of OptionStruct's fields.");
         }
@@ -61,6 +64,7 @@ export class OptionStruct {
             throw new Error("Missing required field d.");
         }
 
+        return this;
     }
 
     // Return this struct in FFI function friendly format.
@@ -70,7 +74,19 @@ export class OptionStruct {
         functionCleanupArena,
         appendArrayMap
     ) {
-        return [this.#a.ffiValue ?? 0, this.#b.ffiValue ?? 0, this.#c, this.#d.ffiValue ?? 0]
+        return [this.#a.ffiValue ?? 0, this.#b.ffiValue ?? 0, this.#c, this.#d.ffiValue]
+    }
+
+    static _fromSuppliedValue(internalConstructor, obj) {
+        if (internalConstructor !== diplomatRuntime.internalConstructor) {
+            throw new Error("_fromSuppliedValue cannot be called externally.");
+        }
+
+        if (obj instanceof OptionStruct) {
+            return obj;
+        }
+
+        return OptionStruct.fromFields(obj);
     }
 
     _writeToArrayBuffer(
@@ -82,7 +98,7 @@ export class OptionStruct {
         diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 0, this.#a.ffiValue ?? 0, Uint32Array);
         diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 4, this.#b.ffiValue ?? 0, Uint32Array);
         diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 8, this.#c, Uint32Array);
-        diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 12, this.#d.ffiValue ?? 0, Uint32Array);
+        diplomatRuntime.writeToArrayBuffer(arrayBuffer, offset + 12, this.#d.ffiValue, Uint32Array);
     }
 
     // This struct contains borrowed fields, so this takes in a list of
@@ -94,7 +110,7 @@ export class OptionStruct {
         if (internalConstructor !== diplomatRuntime.internalConstructor) {
             throw new Error("OptionStruct._fromFFI is not meant to be called externally. Please use the default constructor.");
         }
-        var structObj = {};
+        let structObj = {};
         const aDeref = diplomatRuntime.ptrRead(wasm, ptr);
         structObj.a = aDeref === 0 ? null : new OptionOpaque(diplomatRuntime.internalConstructor, aDeref, []);
         const bDeref = diplomatRuntime.ptrRead(wasm, ptr + 4);
@@ -102,8 +118,12 @@ export class OptionStruct {
         const cDeref = (new Uint32Array(wasm.memory.buffer, ptr + 8, 1))[0];
         structObj.c = cDeref;
         const dDeref = diplomatRuntime.ptrRead(wasm, ptr + 12);
-        structObj.d = dDeref === 0 ? null : new OptionOpaque(diplomatRuntime.internalConstructor, dDeref, []);
+        structObj.d = new OptionOpaque(diplomatRuntime.internalConstructor, dDeref, []);
 
         return new OptionStruct(structObj, internalConstructor);
+    }
+
+    constructor(structObj, internalConstructor) {
+        return this.#internalConstructor(...arguments)
     }
 }

@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
+#include <functional>
 #include <optional>
 #include "diplomat_runtime.hpp"
 
@@ -52,6 +53,12 @@ public:
   inline static std::optional<OptionInputStruct> accepts_option_input_struct(std::optional<OptionInputStruct> arg);
 
   inline static OptionInputStruct returns_option_input_struct();
+
+  inline static size_t accepts_option_str(std::optional<std::string_view> arg);
+
+  inline static bool accepts_option_str_slice(std::optional<diplomat::span<const std::string_view>> arg);
+
+  inline static int64_t accepts_option_primitive(std::optional<diplomat::span<const uint32_t>> arg);
 
   inline const diplomat::capi::OptionOpaque* AsFFI() const;
   inline diplomat::capi::OptionOpaque* AsFFI();

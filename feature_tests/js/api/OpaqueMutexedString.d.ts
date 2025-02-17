@@ -2,9 +2,10 @@
 import type { Utf16Wrap } from "./Utf16Wrap"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
+
+
 export class OpaqueMutexedString {
     
-
     get ffiValue(): pointer;
 
     static fromUsize(number: number): OpaqueMutexedString;
@@ -22,4 +23,6 @@ export class OpaqueMutexedString {
     dummyStr(): string;
 
     wrapper(): Utf16Wrap;
+
+    toUnsignedFromUnsigned(input: number): number;
 }

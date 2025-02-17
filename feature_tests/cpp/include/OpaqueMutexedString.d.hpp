@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
+#include <functional>
 #include <optional>
 #include "diplomat_runtime.hpp"
 
@@ -37,6 +38,8 @@ public:
   inline std::string_view dummy_str() const;
 
   inline std::unique_ptr<Utf16Wrap> wrapper() const;
+
+  inline uint16_t to_unsigned_from_unsigned(uint16_t input) const;
 
   inline const diplomat::capi::OpaqueMutexedString* AsFFI() const;
   inline diplomat::capi::OpaqueMutexedString* AsFFI();

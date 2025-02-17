@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <memory>
+#include <functional>
 #include <optional>
 #include "diplomat_runtime.hpp"
 
@@ -21,6 +22,8 @@ namespace capi {
     diplomat::capi::MyString* MyString_new_unsafe(diplomat::capi::DiplomatStringView v);
     
     diplomat::capi::MyString* MyString_new_owned(diplomat::capi::DiplomatStringView v);
+    
+    diplomat::capi::MyString* MyString_new_from_first(diplomat::capi::DiplomatStringsView v);
     
     void MyString_set_str(diplomat::capi::MyString* self, diplomat::capi::DiplomatStringView new_str);
     
@@ -44,7 +47,7 @@ inline std::unique_ptr<MyString> MyString::new_(std::string_view v) {
 
 inline diplomat::result<std::unique_ptr<MyString>, diplomat::Utf8Error> MyString::new_unsafe(std::string_view v) {
   if (!diplomat::capi::diplomat_is_str(v.data(), v.size())) {
-    return diplomat::Err<diplomat::Utf8Error>(diplomat::Utf8Error());
+    return diplomat::Err<diplomat::Utf8Error>();
   }
   auto result = diplomat::capi::MyString_new_unsafe({v.data(), v.size()});
   return diplomat::Ok<std::unique_ptr<MyString>>(std::unique_ptr<MyString>(MyString::FromFFI(result)));
@@ -52,6 +55,11 @@ inline diplomat::result<std::unique_ptr<MyString>, diplomat::Utf8Error> MyString
 
 inline std::unique_ptr<MyString> MyString::new_owned(std::string_view v) {
   auto result = diplomat::capi::MyString_new_owned({v.data(), v.size()});
+  return std::unique_ptr<MyString>(MyString::FromFFI(result));
+}
+
+inline std::unique_ptr<MyString> MyString::new_from_first(diplomat::span<const std::string_view> v) {
+  auto result = diplomat::capi::MyString_new_from_first({reinterpret_cast<const diplomat::capi::DiplomatStringView*>(v.data()), v.size()});
   return std::unique_ptr<MyString>(MyString::FromFFI(result));
 }
 
@@ -70,7 +78,7 @@ inline std::string MyString::get_str() const {
 
 inline diplomat::result<std::string, diplomat::Utf8Error> MyString::string_transform(std::string_view foo) {
   if (!diplomat::capi::diplomat_is_str(foo.data(), foo.size())) {
-    return diplomat::Err<diplomat::Utf8Error>(diplomat::Utf8Error());
+    return diplomat::Err<diplomat::Utf8Error>();
   }
   std::string output;
   diplomat::capi::DiplomatWrite write = diplomat::WriteFromString(output);

@@ -10,8 +10,8 @@ use diplomat_core::hir::borrowing_param::{
     BorrowedLifetimeInfo, LifetimeEdge, LifetimeEdgeKind, ParamBorrowInfo, StructBorrowInfo,
 };
 use diplomat_core::hir::{
-    self, EnumDef, LifetimeEnv, Method, OpaqueDef, SpecialMethod, SpecialMethodPresence, Type,
-    TypeContext, TypeId,
+    self, EnumDef, LifetimeEnv, Method, OpaqueDef, SpecialMethod, SpecialMethodPresence,
+    StructPathLike, Type, TypeContext, TypeId,
 };
 
 use askama::{self, Template};
@@ -20,6 +20,13 @@ use super::formatter::JSFormatter;
 use crate::ErrorStore;
 
 use super::converter::{ForcePaddingStatus, JsToCConversionContext, StructBorrowContext};
+
+/// Represents list of imports that our Type is going to use.
+/// Resolved in [`TyGenContext::generate_base`]
+pub(super) struct Imports<'tcx> {
+    pub js: BTreeSet<ImportInfo<'tcx>>,
+    pub ts: BTreeSet<ImportInfo<'tcx>>,
+}
 
 /// Represents context for generating a Javascript class.
 ///
@@ -30,10 +37,10 @@ pub(super) struct TyGenContext<'ctx, 'tcx> {
     pub formatter: &'ctx JSFormatter<'tcx>,
     pub errors: &'ctx ErrorStore<'tcx, String>,
     /// Imports, stored as a type name. Imports are fully resolved in [`TyGenContext::generate_base`], with a call to [`JSFormatter::fmt_import_statement`].
-    pub imports: RefCell<BTreeSet<String>>,
+    pub imports: RefCell<Imports<'tcx>>,
 }
 
-impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
+impl<'tcx> TyGenContext<'_, 'tcx> {
     /// Generates the code at the top of every `.d.ts` and `.mjs` file.
     ///
     /// This could easily be an [inherited template](https://djc.github.io/askama/template_syntax.html#template-inheritance), if you want to be a little more strict about how templates are used.
@@ -46,12 +53,18 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             imports: Vec<String>,
         }
 
+        let i = self.imports.borrow();
+
         let mut new_imports = Vec::new();
-        for import in self.imports.borrow().iter() {
-            new_imports.push(
-                self.formatter
-                    .fmt_import_statement(import, typescript, "./".into()),
-            );
+        let imports = if typescript { i.ts.iter() } else { i.js.iter() };
+
+        for import in imports {
+            new_imports.push(self.formatter.fmt_import_statement(
+                &import.import_type,
+                typescript,
+                "./".into(),
+                &import.import_file,
+            ));
         }
 
         BaseTemplate {
@@ -66,15 +79,49 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
     /// A wrapper for `borrow_mut`ably inserting new imports.
     ///
     /// I do this to avoid borrow checking madness.
-    pub(super) fn add_import(&self, import_str: String) {
-        self.imports.borrow_mut().insert(import_str);
+    pub(super) fn add_import(
+        &self,
+        import_str: Cow<'tcx, str>,
+        import_file: Option<Cow<'tcx, str>>,
+        usage: ImportUsage,
+    ) {
+        let inf = ImportInfo {
+            import_type: import_str.clone(),
+            import_file: import_file.unwrap_or(
+                self.formatter
+                    .fmt_file_name_extensionless(&import_str)
+                    .into(),
+            ),
+        };
+        if usage == ImportUsage::Module || usage == ImportUsage::Both {
+            self.imports.borrow_mut().js.insert(inf.clone());
+        }
+        if usage == ImportUsage::Typescript || usage == ImportUsage::Both {
+            self.imports.borrow_mut().ts.insert(inf);
+        }
     }
 
     /// Exists for the same reason as [`Self::add_import`].
     ///
     /// Right now, only used for removing any self imports.
-    pub(super) fn remove_import(&self, import_str: String) {
-        self.imports.borrow_mut().remove(&import_str);
+    pub(super) fn remove_import(
+        &self,
+        import_str: Cow<'tcx, str>,
+        import_file: Option<Cow<'tcx, str>>,
+        usage: ImportUsage,
+    ) {
+        let inf = ImportInfo {
+            import_type: import_str,
+            import_file: import_file.unwrap_or_default(),
+        };
+
+        if usage == ImportUsage::Module || usage == ImportUsage::Both {
+            self.imports.borrow_mut().js.remove(&inf);
+        }
+
+        if usage == ImportUsage::Typescript || usage == ImportUsage::Both {
+            self.imports.borrow_mut().ts.remove(&inf);
+        }
     }
 
     /// Generate an enumerator type's body for a file from the given definition.
@@ -103,6 +150,9 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             doc_str: String,
 
             methods: &'a MethodsInfo<'a>,
+
+            /// Used by `js_class.js.jinja`. If a constructor isn't overridden by #[diplomat::attr(auto, constructor)], this is the logic that `js_class.js.jinja` will use to determine whether or not to generate constructor code.
+            show_default_ctor: bool,
         }
 
         ImplTemplate {
@@ -115,6 +165,8 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             is_contiguous,
 
             methods,
+
+            show_default_ctor: true,
         }
         .render()
         .unwrap()
@@ -139,9 +191,13 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             lifetimes: &'a LifetimeEnv,
             destructor: &'a str,
 
-            docs: String,
+            doc_str: String,
 
             methods: &'a MethodsInfo<'a>,
+
+            /// Used by `js_class.js.jinja`. If a constructor isn't overridden by #[diplomat::attr(auto, constructor)], this is the logic that `js_class.js.jinja` will use to determine whether or not to generate constructor code.
+            /// Useful for hiding opaque constructors in typescript headers, for instance.
+            show_default_ctor: bool,
         }
 
         ImplTemplate {
@@ -151,9 +207,11 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             lifetimes: &opaque_def.lifetimes,
             destructor,
 
-            docs: self.formatter.fmt_docs(&opaque_def.docs),
+            doc_str: self.formatter.fmt_docs(&opaque_def.docs),
 
             methods,
+
+            show_default_ctor: !typescript,
         }
         .render()
         .unwrap()
@@ -180,6 +238,20 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             let field_name = self.formatter.fmt_param_name(field.name.as_str());
 
             let js_type_name = self.gen_js_type_str(&field.ty);
+
+            if let Type::Struct(..) = &field.ty {
+                let obj_ty: Cow<'tcx, str> = format!("{js_type_name}_obj").into();
+
+                self.add_import(
+                    obj_ty.clone(),
+                    Some(
+                        self.formatter
+                            .fmt_file_name_extensionless(&js_type_name)
+                            .into(),
+                    ),
+                    ImportUsage::Typescript,
+                );
+            }
 
             let is_option = matches!(&field.ty, hir::Type::DiplomatOption(..));
 
@@ -293,6 +365,34 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
         (fields, needs_force_padding)
     }
 
+    pub(super) fn only_primitive<P: hir::TyPosition>(&self, st: &hir::StructDef<P>) -> bool {
+        if st.fields.len() != 1 {
+            return false;
+        }
+
+        let first = st.fields.first().unwrap();
+
+        match &first.ty {
+            hir::Type::Primitive(..) => true,
+            hir::Type::Struct(s) => match s.id() {
+                hir::TypeId::Struct(s) => self.only_primitive(self.tcx.resolve_struct(s)),
+                hir::TypeId::OutStruct(s) => self.only_primitive(self.tcx.resolve_out_struct(s)),
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+
+    /// WASM only returns a primitive (instead of a pointer) if our struct just wraps a primitive (or nests a struct that only has one primitive as a field).
+    /// This is a quick way to verify that we are grabbing a value instead of a pointer.
+    pub(super) fn wraps_a_primitive(&self, st: &hir::ReturnableStructPath) -> bool {
+        match st.resolve(self.tcx) {
+            hir::ReturnableStructDef::OutStruct(s) => self.only_primitive(s),
+            hir::ReturnableStructDef::Struct(s) => self.only_primitive(s),
+            _ => false,
+        }
+    }
+
     /// Generate a struct type's body for a file from the given definition.
     ///
     /// Used for both [`hir::TypeDef::Struct`] and [`hir::TypeDef::OutStruct`], which is why `is_out` exists.
@@ -321,7 +421,14 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             fields: &'a Vec<FieldInfo<'a, P>>,
             methods: &'a MethodsInfo<'a>,
 
-            docs: String,
+            wraps_primitive: bool,
+            owns_wrapped_primitive: bool,
+
+            doc_str: String,
+
+            /// Used by `js_class.js.jinja`. If a constructor isn't overridden by #[diplomat::attr(auto, constructor)], this is the logic that `js_class.js.jinja` will use to determine whether or not to generate constructor code.
+            /// Useful for hiding the fact that an out_struct has a constructor in typescript headers, for instance.
+            show_default_ctor: bool,
         }
 
         ImplTemplate {
@@ -336,7 +443,16 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
             fields,
             methods,
 
-            docs: self.formatter.fmt_docs(&struct_def.docs),
+            wraps_primitive: self.only_primitive(struct_def),
+            owns_wrapped_primitive: !struct_def.fields.is_empty()
+                && matches!(
+                    struct_def.fields.first().unwrap().ty,
+                    hir::Type::Primitive(..)
+                ),
+
+            doc_str: self.formatter.fmt_docs(&struct_def.docs),
+
+            show_default_ctor: !is_out || !typescript,
         }
         .render()
         .unwrap()
@@ -384,9 +500,31 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
         }
 
         for param in method.params.iter() {
+            let base_type = self.gen_js_type_str(&param.ty);
+            let param_type_str = format!(
+                "{}",
+                // If we're a struct, we can substitute StructType_obj (since it's the only thing we need to pass to WASM)
+                if let Type::Struct(..) = &param.ty {
+                    let obj_ty: Cow<'tcx, str> = format!("{base_type}_obj").into();
+                    self.add_import(
+                        obj_ty.clone(),
+                        Some(
+                            self.formatter
+                                .fmt_file_name_extensionless(&base_type)
+                                .into(),
+                        ),
+                        ImportUsage::Typescript,
+                    );
+                    obj_ty
+                } else {
+                    base_type
+                }
+            )
+            .into();
+
             let param_info = ParamInfo {
                 name: self.formatter.fmt_param_name(param.name.as_str()),
-                ty: self.gen_js_type_str(&param.ty),
+                ty: param_type_str,
             };
 
             let param_borrow_kind = visitor.visit_param(&param.ty, &param_info.name);
@@ -475,7 +613,10 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
                 format!("set {}", self.formatter.fmt_method_field_name(name, method))
             }
             Some(SpecialMethod::Iterable) => "[Symbol.iterator]".to_string(),
+            // TODO: Make this hidden in typescript.
             Some(SpecialMethod::Iterator) => "#iteratorNext".to_string(),
+
+            Some(SpecialMethod::Constructor) => "#defaultConstructor".into(),
 
             _ if method.param_self.is_none() => {
                 format!("static {}", self.formatter.fmt_method_name(method))
@@ -502,13 +643,14 @@ impl<'ctx, 'tcx> TyGenContext<'ctx, 'tcx> {
 
         SpecialMethodInfo {
             iterator,
+            constructor: None,
             typescript: false,
         }
     }
 }
 
 /// Represents a parameter of a method. Used as part of [`MethodInfo`], exclusively in the method definition.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(super) struct ParamInfo<'a> {
     ty: Cow<'a, str>,
     name: Cow<'a, str>,
@@ -521,6 +663,7 @@ pub(super) struct ParamInfo<'a> {
 /// [`ParamInfo`] represents the conversion of the slice into C-friendly terms. This just represents an extra stage for Diplomat to convert whatever slice type we're given into a type that returns a `.ptr` and `.size` field.
 ///
 /// See `DiplomatBuf` in `runtime.mjs` for more.
+#[derive(Clone)]
 pub(super) struct SliceParam<'a> {
     name: Cow<'a, str>,
     /// How to convert the JS type into a C slice.
@@ -530,7 +673,7 @@ pub(super) struct SliceParam<'a> {
 /// Represents a Rust method that we invoke inside of WebAssembly with JS.
 ///
 /// Has an attached template to convert it into Javascript.
-#[derive(Default, Template)]
+#[derive(Default, Template, Clone)]
 #[template(path = "js/method.js.jinja", escape = "none")]
 pub(super) struct MethodInfo<'info> {
     /// Do we return the `()` type?
@@ -572,11 +715,11 @@ pub(super) struct MethodInfo<'info> {
 }
 
 /// See [`TyGenContext::generate_special_method`].
-#[derive(Template)]
-#[template(path = "js/iterator.js.jinja", escape = "none")]
+/// Used in `js_class.js.jinja`
 pub(super) struct SpecialMethodInfo<'a> {
     iterator: Option<Cow<'a, str>>,
     pub typescript: bool,
+    pub constructor: Option<MethodInfo<'a>>,
 }
 
 /// An amalgamation of both [`SpecialMethodInfo`] and [`MethodInfo`], since these two always get passed together in methods.
@@ -604,6 +747,44 @@ pub(super) struct FieldInfo<'info, P: hir::TyPosition> {
     /// Used in the constructor() function to determine whether or not this field is required for construction.
     is_optional: bool,
 }
+
+/// Where the imports are going to be used in.
+#[derive(PartialEq, Clone)]
+pub(super) enum ImportUsage {
+    /// .mjs files only
+    Module,
+    /// .d.ts files only
+    Typescript,
+    /// Both .mjs and .d.ts
+    Both,
+}
+
+#[derive(Clone)]
+pub(super) struct ImportInfo<'info> {
+    import_type: Cow<'info, str>,
+    import_file: Cow<'info, str>,
+}
+
+/// Imports are only unique if they use a different type. We don't care about anything else.
+impl Ord for ImportInfo<'_> {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.import_type.cmp(&other.import_type)
+    }
+}
+
+impl PartialOrd for ImportInfo<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.import_type.cmp(&other.import_type))
+    }
+}
+
+impl PartialEq for ImportInfo<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.import_type.eq(&other.import_type)
+    }
+}
+
+impl Eq for ImportInfo<'_> {}
 
 // Helpers used in templates (Askama has restrictions on Rust syntax)
 

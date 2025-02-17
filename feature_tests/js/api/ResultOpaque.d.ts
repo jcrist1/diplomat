@@ -3,12 +3,11 @@ import type { ErrorEnum } from "./ErrorEnum"
 import type { ErrorStruct } from "./ErrorStruct"
 import type { pointer, codepoint } from "./diplomat-runtime.d.ts";
 
+
+
 export class ResultOpaque {
     
-
     get ffiValue(): pointer;
-
-    static new_(i: number): ResultOpaque;
 
     static newFailingFoo(): ResultOpaque;
 
@@ -24,5 +23,9 @@ export class ResultOpaque {
 
     static newInEnumErr(i: number): ErrorEnum;
 
+    takesStr(v: string): ResultOpaque;
+
     assertInteger(i: number): void;
+
+    constructor(i: number);
 }

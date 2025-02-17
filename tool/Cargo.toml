@@ -1,22 +1,18 @@
 [package]
 name = "diplomat-tool"
 description = "Tool for generating FFI bindings for various languages"
-version = "0.8.0"
-authors = [
-    "Shadaj Laddad <shadaj@users.noreply.github.com>",
-    "Manish Goregaokar <manishsmail@gmail.com>",
-    "Quinn Okabayashi <QnnOkabayashi@users.noreply.github.com>"
-]
-edition = "2021"
-license = "MIT OR Apache-2.0"
-documentation = "https://docs.rs/diplomat_core/"
-keywords = ["ffi", "codegen"]
-categories = ["development-tools"]
-repository = "https://github.com/rust-diplomat/diplomat"
+version.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
 
 [dependencies]
-diplomat_core = { path = "../core", version = "0.8.0", features = ["displaydoc", "hir"] }
-syn = { version = "2", features = [ "full", "extra-traits" ] }
+diplomat_core = { workspace = true, features = ["displaydoc", "hir"] }
+syn = { version = "2", features = ["full", "extra-traits"] }
 syn-inline-mod = "0.6.0"
 quote = "1.0"
 indenter = "0.3.3"
@@ -28,8 +24,10 @@ toml = "0.5.8"
 heck = "0.4" # conversion between naming convention
 displaydoc = "0.2"
 askama = "0.12"
+once_cell = "1.20.2"
+itertools = "0.14.0"
 
 [dev-dependencies]
-insta = { version = "1.7.1", features = [ "yaml" ] }
+insta = { version = "1.7.1", features = ["yaml"] }
 quote = "1.0"
 proc-macro2 = "1.0.79"

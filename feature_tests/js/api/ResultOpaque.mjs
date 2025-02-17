@@ -9,6 +9,7 @@ const ResultOpaque_box_destroy_registry = new FinalizationRegistry((ptr) => {
 });
 
 export class ResultOpaque {
+    
     // Internal ptr reference:
     #ptr = null;
 
@@ -16,7 +17,7 @@ export class ResultOpaque {
     // Since JS won't garbage collect until there are no incoming edges.
     #selfEdge = [];
     
-    constructor(symbol, ptr, selfEdge) {
+    #internalConstructor(symbol, ptr, selfEdge) {
         if (symbol !== diplomatRuntime.internalConstructor) {
             console.error("ResultOpaque is an Opaque type. You cannot call its constructor.");
             return;
@@ -29,13 +30,14 @@ export class ResultOpaque {
         if (this.#selfEdge.length === 0) {
             ResultOpaque_box_destroy_registry.register(this, this.#ptr);
         }
+        
+        return this;
     }
-
     get ffiValue() {
         return this.#ptr;
     }
 
-    static new_(i) {
+    #defaultConstructor(i) {
         const diplomatReceive = new diplomatRuntime.DiplomatReceiveBuf(wasm, 5, 4, true);
         
         const result = wasm.ResultOpaque_new(diplomatReceive.buffer, i);
@@ -177,10 +179,39 @@ export class ResultOpaque {
         }
     }
 
+    takesStr(v) {
+        let functionCleanupArena = new diplomatRuntime.CleanupArena();
+        
+        const vSlice = functionCleanupArena.alloc(diplomatRuntime.DiplomatBuf.str8(wasm, v));
+        
+        // This lifetime edge depends on lifetimes 'a
+        let aEdges = [this];
+        
+        const result = wasm.ResultOpaque_takes_str(this.ffiValue, ...vSlice.splat());
+    
+        try {
+            return new ResultOpaque(diplomatRuntime.internalConstructor, result, aEdges);
+        }
+        
+        finally {
+            functionCleanupArena.free();
+        }
+    }
+
     assertInteger(i) {wasm.ResultOpaque_assert_integer(this.ffiValue, i);
     
         try {}
         
         finally {}
+    }
+
+    constructor(i) {
+        if (arguments[0] === diplomatRuntime.exposeConstructor) {
+            return this.#internalConstructor(...Array.prototype.slice.call(arguments, 1));
+        } else if (arguments[0] === diplomatRuntime.internalConstructor) {
+            return this.#internalConstructor(...arguments);
+        } else {
+            return this.#defaultConstructor(...arguments);
+        }
     }
 }

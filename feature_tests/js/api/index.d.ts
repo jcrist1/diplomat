@@ -22,6 +22,8 @@ export { CyclicStructA } from "./CyclicStructA"
 
 export { CyclicStructB } from "./CyclicStructB"
 
+export { CyclicStructC } from "./CyclicStructC"
+
 export { MyStruct } from "./MyStruct"
 
 export { MyZst } from "./MyZst"
@@ -37,6 +39,10 @@ export { RenamedAttrOpaque2 } from "./RenamedAttrOpaque2"
 export { RenamedMyIterable } from "./RenamedMyIterable"
 
 export { RenamedMyIterator } from "./RenamedMyIterator"
+
+export { RenamedNested } from "./RenamedNested"
+
+export { RenamedNested2 } from "./RenamedNested2"
 
 export { RenamedOpaqueIterable } from "./RenamedOpaqueIterable"
 
@@ -68,6 +74,8 @@ export { Float64Vec } from "./Float64Vec"
 
 export { MyString } from "./MyString"
 
+export { MyOpaqueEnum } from "./MyOpaqueEnum"
+
 export { Opaque } from "./Opaque"
 
 export { OpaqueMutexedString } from "./OpaqueMutexedString"
@@ -83,5 +91,7 @@ export { OptionEnum } from "./OptionEnum"
 export { ErrorEnum } from "./ErrorEnum"
 
 export { ContiguousEnum } from "./ContiguousEnum"
+
+export { DefaultEnum } from "./DefaultEnum"
 
 export { MyEnum } from "./MyEnum"

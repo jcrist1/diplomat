@@ -35,6 +35,19 @@ pub mod ffi {
         F = 3,
     }
 
+    #[diplomat::opaque]
+    pub enum MyOpaqueEnum {
+        A(String),
+        B(Utf16Wrap),
+        C,
+        D(i32, ImportedStruct),
+    }
+
+    pub enum DefaultEnum {
+        A,
+        B,
+    }
+
     pub struct MyStruct {
         a: u8,
         b: bool,
@@ -45,6 +58,7 @@ pub mod ffi {
         g: MyEnum,
     }
 
+    #[diplomat::attr(auto, error)]
     pub struct MyZst;
 
     impl Opaque {
@@ -133,6 +147,10 @@ pub mod ffi {
                 .collect();
             Box::new(Utf16Wrap(chars))
         }
+
+        pub fn to_unsigned_from_unsigned(&self, input: u16) -> u16 {
+            input
+        }
     }
 
     impl Utf16Wrap {
@@ -157,6 +175,33 @@ pub mod ffi {
 
         pub fn get_a() -> MyEnum {
             MyEnum::A
+        }
+    }
+
+    impl MyOpaqueEnum {
+        #[diplomat::demo(default_constructor)]
+        pub fn new() -> Box<MyOpaqueEnum> {
+            Box::new(MyOpaqueEnum::A("a".into()))
+        }
+
+        pub fn to_string(&self, write: &mut DiplomatWrite) {
+            let _infallible = write!(
+                write,
+                "MyOpaqueEnum::{}",
+                match self {
+                    MyOpaqueEnum::A(..) => "A",
+                    MyOpaqueEnum::B(..) => "B",
+                    MyOpaqueEnum::C => "C",
+                    MyOpaqueEnum::D(..) => "D",
+                }
+            );
+        }
+    }
+
+    impl DefaultEnum {
+        #[diplomat::attr(all(supports=constructors, not(dart)), constructor)]
+        pub fn new() -> DefaultEnum {
+            DefaultEnum::A
         }
     }
 
@@ -208,14 +253,53 @@ pub mod ffi {
         pub field: u8,
     }
 
+    // For demo_gen testing. How many layers in are we going?
+    #[derive(Default)]
+    pub struct CyclicStructC {
+        pub a: CyclicStructA,
+    }
+
     impl CyclicStructA {
         pub fn get_b() -> CyclicStructB {
             Default::default()
         }
+
+        pub fn cyclic_out(self, out: &mut DiplomatWrite) {
+            out.write_str(&self.a.field.to_string()).unwrap();
+        }
+
+        // For demo gen: tests having the same variables in the namespace
+        pub fn double_cyclic_out(self, cyclic_struct_a: Self, out: &mut DiplomatWrite) {
+            out.write_fmt(format_args!(
+                "{} {}",
+                &self.a.field, cyclic_struct_a.a.field
+            ))
+            .unwrap();
+        }
+
+        #[diplomat::attr(auto, getter)]
+        pub fn getter_out(self, out: &mut DiplomatWrite) {
+            out.write_str(&self.a.field.to_string()).unwrap();
+        }
     }
+
     impl CyclicStructB {
         pub fn get_a() -> CyclicStructA {
             Default::default()
+        }
+
+        pub fn get_a_option() -> Option<CyclicStructA> {
+            Some(Default::default())
+        }
+    }
+
+    impl CyclicStructC {
+        pub fn takes_nested_parameters(c: CyclicStructC) -> CyclicStructC {
+            c
+        }
+
+        pub fn cyclic_out(self, out: &mut DiplomatWrite) {
+            out.write_str(&self.a.a.field.to_string()).unwrap();
         }
     }
 

@@ -58,7 +58,7 @@ pub(super) enum JsToCConversionContext {
     WriteToBuffer(&'static str, usize),
 }
 
-impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
+impl<'tcx> TyGenContext<'_, 'tcx> {
     // #region C to JS
     /// Given a type from Rust, convert it into something Typescript will understand.
     /// We use this to double-check our Javascript work as well.
@@ -70,7 +70,7 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                 let type_name = self.formatter.fmt_type_name(opaque_id);
 
                 // Add to the import list:
-                self.add_import(type_name.clone().into());
+                self.add_import(type_name.clone(), None, super::gen::ImportUsage::Both);
 
                 if self.tcx.resolve_type(opaque_id).attrs().disable {
                     self.errors
@@ -88,7 +88,7 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                 let type_name = self.formatter.fmt_type_name(id);
 
                 // Add to the import list:
-                self.add_import(type_name.clone().into());
+                self.add_import(type_name.clone(), None, super::gen::ImportUsage::Both);
 
                 if self.tcx.resolve_type(id).attrs().disable {
                     self.errors
@@ -101,7 +101,7 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                 let type_name = self.formatter.fmt_type_name(enum_id);
 
                 // Add to the import list:
-                self.add_import(type_name.clone().into());
+                self.add_import(type_name.clone(), None, super::gen::ImportUsage::Both);
 
                 if self.tcx.resolve_type(enum_id).attrs().disable {
                     self.errors
@@ -205,7 +205,7 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                 let type_def = self.tcx.resolve_type(id);
                 match type_def {
                     hir::TypeDef::Struct(st) if st.fields.is_empty() => {
-                        format!("new {type_name}({{}}, diplomatRuntime.internalConstructor)").into()
+                        format!("{type_name}.fromFields({{}}, diplomatRuntime.internalConstructor)").into()
                     }
                     hir::TypeDef::Struct(..) => {
                         format!("{type_name}._fromFFI(diplomatRuntime.internalConstructor, {variable_name}{edges})").into()
@@ -284,25 +284,48 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
         offset: usize,
     ) -> Cow<'tcx, str> {
         let pointer = if offset == 0 {
-            variable_name
+            variable_name.clone()
         } else {
             format!("{variable_name} + {offset}").into()
         };
-        match *ty {
+        match ty {
             Type::Enum(..) => format!("diplomatRuntime.enumDiscriminant(wasm, {pointer})").into(),
             Type::Opaque(..) => format!("diplomatRuntime.ptrRead(wasm, {pointer})").into(),
-            // Structs always assume they're being passed a pointer, so they handle this in their constructors:
-            // See NestedBorrowedFields
-            Type::Struct(..) | Type::Slice(..) | Type::DiplomatOption(..) => pointer,
             Type::Primitive(p) => format!(
                 "(new {ctor}(wasm.memory.buffer, {pointer}, 1))[0]{cmp}",
-                ctor = self.formatter.fmt_primitive_slice(p),
+                ctor = self.formatter.fmt_primitive_slice(*p),
                 cmp = match p {
                     PrimitiveType::Bool => " === 1",
                     _ => "",
                 }
             )
             .into(),
+            Type::Struct(st)
+                if match st.id() {
+                    hir::TypeId::OutStruct(s) => {
+                        self.only_primitive(self.tcx.resolve_out_struct(s))
+                    }
+                    hir::TypeId::Struct(s) => self.only_primitive(self.tcx.resolve_struct(s)),
+                    _ => false,
+                } =>
+            {
+                match st.id() {
+                    hir::TypeId::OutStruct(s) => {
+                        let first = self.tcx.resolve_out_struct(s).fields.first().unwrap();
+
+                        self.gen_c_to_js_deref_for_type(&first.ty, variable_name, offset)
+                    }
+                    hir::TypeId::Struct(s) => {
+                        let first = self.tcx.resolve_struct(s).fields.first().unwrap();
+
+                        self.gen_c_to_js_deref_for_type(&first.ty, variable_name, offset)
+                    }
+                    _ => unreachable!("Expected struct, got {:?}", st.id()),
+                }
+            }
+            // Structs (nearly) always assume they're being passed a pointer, so they handle this in their constructors:
+            // See NestedBorrowedFields
+            Type::Struct(..) | Type::Slice(..) | Type::DiplomatOption(..) => pointer,
             _ => unreachable!("Unknown AST/HIR variant {:?}", ty),
         }
     }
@@ -381,6 +404,7 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
             ReturnType::Infallible(SuccessType::OutType(ref o)) => {
                 let mut result = "result";
                 match o {
+                    Type::Struct(s) if self.wraps_a_primitive(s) => {}
                     Type::Struct(_) | Type::Slice(_) => {
                         let layout = crate::js::layout::type_size_alignment(o, self.tcx);
                         let size = layout.size();
@@ -430,7 +454,7 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                 let (requires_buf, error_ret) = match return_type {
                     ReturnType::Fallible(s, Some(e)) => {
                         let type_name = self.formatter.fmt_type_name(e.id().unwrap());
-                        self.add_import(type_name.into());
+                        self.add_import(type_name, None, super::gen::ImportUsage::Both);
 
                         let fields_empty = matches!(e, Type::Struct(s) if match s.resolve(self.tcx) {
                                 ReturnableStructDef::Struct(s) => s.fields.is_empty(),
@@ -605,7 +629,8 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                 gen_context,
                 PrimitiveType::Int(IntType::I32),
             ),
-            Type::Struct(..) => self.gen_js_to_c_for_struct_type(
+            Type::Struct(ref s) => self.gen_js_to_c_for_struct_type(
+                self.formatter.fmt_type_name(s.id()),
                 js_name,
                 struct_borrow_info,
                 alloc.unwrap(),
@@ -697,6 +722,7 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
     /// The end goal of this is to call `_intoFFI`, to convert a structure into a flattened list of values that WASM understands.
     pub(super) fn gen_js_to_c_for_struct_type(
         &self,
+        js_type: Cow<'tcx, str>,
         js_name: Cow<'tcx, str>,
         struct_borrow_info: Option<&StructBorrowContext<'tcx>>,
         allocator: &str,
@@ -725,6 +751,10 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                 write!(&mut params, "],").unwrap();
             }
         }
+
+        let js_call =
+            format!("{js_type}._fromSuppliedValue(diplomatRuntime.internalConstructor, {js_name})");
+
         match gen_context {
             JsToCConversionContext::List(force_padding) => {
                 let force_padding = match force_padding {
@@ -732,10 +762,10 @@ impl<'jsctx, 'tcx> TyGenContext<'jsctx, 'tcx> {
                     ForcePaddingStatus::Force => ", true",
                     ForcePaddingStatus::PassThrough => ", forcePadding",
                 };
-                format!("...{js_name}._intoFFI({allocator}, {{{params}}}{force_padding})").into()
+                format!("...{js_call}._intoFFI({allocator}, {{{params}}}{force_padding})").into()
             }
             JsToCConversionContext::WriteToBuffer(offset_var, offset) => format!(
-                "{js_name}._writeToArrayBuffer(arrayBuffer, {offset_var} + {offset}, {allocator}, {{{params}}})"
+                "{js_call}._writeToArrayBuffer(arrayBuffer, {offset_var} + {offset}, {allocator}, {{{params}}})"
             )
             .into(),
             JsToCConversionContext::SlicePrealloc => {

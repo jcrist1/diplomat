@@ -6,54 +6,68 @@ import { Foo } from "./Foo.mjs"
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-export class NestedBorrowedFields {
 
+
+export class NestedBorrowedFields {
+    
     #fields;
+    
     get fields()  {
         return this.#fields;
-    }
+    } 
     set fields(value) {
         this.#fields = value;
     }
-
+    
     #bounds;
+    
     get bounds()  {
         return this.#bounds;
-    }
+    } 
     set bounds(value) {
         this.#bounds = value;
     }
-
+    
     #bounds2;
+    
     get bounds2()  {
         return this.#bounds2;
-    }
+    } 
     set bounds2(value) {
         this.#bounds2 = value;
     }
-    constructor(structObj) {
+    
+    /** Create `NestedBorrowedFields` from an object that contains all of `NestedBorrowedFields`s fields.
+    * Optional fields do not need to be included in the provided object.
+    */
+    static fromFields(structObj) {
+        return new NestedBorrowedFields(structObj);
+    }
+
+    #internalConstructor(structObj) {
         if (typeof structObj !== "object") {
             throw new Error("NestedBorrowedFields's constructor takes an object of NestedBorrowedFields's fields.");
         }
 
         if ("fields" in structObj) {
-            this.#fields = structObj.fields;
+            this.#fields = BorrowedFields._fromSuppliedValue(diplomatRuntime.internalConstructor, structObj.fields);
         } else {
             throw new Error("Missing required field fields.");
         }
 
         if ("bounds" in structObj) {
-            this.#bounds = structObj.bounds;
+            this.#bounds = BorrowedFieldsWithBounds._fromSuppliedValue(diplomatRuntime.internalConstructor, structObj.bounds);
         } else {
             throw new Error("Missing required field bounds.");
         }
 
         if ("bounds2" in structObj) {
-            this.#bounds2 = structObj.bounds2;
+            this.#bounds2 = BorrowedFieldsWithBounds._fromSuppliedValue(diplomatRuntime.internalConstructor, structObj.bounds2);
         } else {
             throw new Error("Missing required field bounds2.");
         }
 
+        return this;
     }
 
     // Return this struct in FFI function friendly format.
@@ -68,7 +82,19 @@ export class NestedBorrowedFields {
         functionCleanupArena,
         appendArrayMap
     ) {
-        return [...this.#fields._intoFFI(functionCleanupArena, {aAppendArray: [...xAppendArray],}), ...this.#bounds._intoFFI(functionCleanupArena, {aAppendArray: [...xAppendArray],bAppendArray: [...yAppendArray],cAppendArray: [...yAppendArray],}), ...this.#bounds2._intoFFI(functionCleanupArena, {aAppendArray: [...zAppendArray],bAppendArray: [...zAppendArray],cAppendArray: [...zAppendArray],})]
+        return [...BorrowedFields._fromSuppliedValue(diplomatRuntime.internalConstructor, this.#fields)._intoFFI(functionCleanupArena, {aAppendArray: [...xAppendArray],}), ...BorrowedFieldsWithBounds._fromSuppliedValue(diplomatRuntime.internalConstructor, this.#bounds)._intoFFI(functionCleanupArena, {aAppendArray: [...xAppendArray],bAppendArray: [...yAppendArray],cAppendArray: [...yAppendArray],}), ...BorrowedFieldsWithBounds._fromSuppliedValue(diplomatRuntime.internalConstructor, this.#bounds2)._intoFFI(functionCleanupArena, {aAppendArray: [...zAppendArray],bAppendArray: [...zAppendArray],cAppendArray: [...zAppendArray],})]
+    }
+
+    static _fromSuppliedValue(internalConstructor, obj) {
+        if (internalConstructor !== diplomatRuntime.internalConstructor) {
+            throw new Error("_fromSuppliedValue cannot be called externally.");
+        }
+
+        if (obj instanceof NestedBorrowedFields) {
+            return obj;
+        }
+
+        return NestedBorrowedFields.fromFields(obj);
     }
 
     _writeToArrayBuffer(
@@ -77,16 +103,16 @@ export class NestedBorrowedFields {
         functionCleanupArena,
         appendArrayMap
     ) {
-        this.#fields._writeToArrayBuffer(arrayBuffer, offset + 0, functionCleanupArena, {aAppendArray: [...xAppendArray],});
-        this.#bounds._writeToArrayBuffer(arrayBuffer, offset + 24, functionCleanupArena, {aAppendArray: [...xAppendArray],bAppendArray: [...yAppendArray],cAppendArray: [...yAppendArray],});
-        this.#bounds2._writeToArrayBuffer(arrayBuffer, offset + 48, functionCleanupArena, {aAppendArray: [...zAppendArray],bAppendArray: [...zAppendArray],cAppendArray: [...zAppendArray],});
+        BorrowedFields._fromSuppliedValue(diplomatRuntime.internalConstructor, this.#fields)._writeToArrayBuffer(arrayBuffer, offset + 0, functionCleanupArena, {aAppendArray: [...xAppendArray],});
+        BorrowedFieldsWithBounds._fromSuppliedValue(diplomatRuntime.internalConstructor, this.#bounds)._writeToArrayBuffer(arrayBuffer, offset + 24, functionCleanupArena, {aAppendArray: [...xAppendArray],bAppendArray: [...yAppendArray],cAppendArray: [...yAppendArray],});
+        BorrowedFieldsWithBounds._fromSuppliedValue(diplomatRuntime.internalConstructor, this.#bounds2)._writeToArrayBuffer(arrayBuffer, offset + 48, functionCleanupArena, {aAppendArray: [...zAppendArray],bAppendArray: [...zAppendArray],cAppendArray: [...zAppendArray],});
     }
 
     static _fromFFI(internalConstructor, ptr, xEdges, yEdges, zEdges) {
         if (internalConstructor !== diplomatRuntime.internalConstructor) {
             throw new Error("NestedBorrowedFields._fromFFI is not meant to be called externally. Please use the default constructor.");
         }
-        var structObj = {};
+        let structObj = {};
         const fieldsDeref = ptr;
         structObj.fields = BorrowedFields._fromFFI(diplomatRuntime.internalConstructor, fieldsDeref, xEdges);
         const boundsDeref = ptr + 24;
@@ -94,7 +120,7 @@ export class NestedBorrowedFields {
         const bounds2Deref = ptr + 48;
         structObj.bounds2 = BorrowedFieldsWithBounds._fromFFI(diplomatRuntime.internalConstructor, bounds2Deref, zEdges, zEdges, zEdges);
 
-        return new NestedBorrowedFields(structObj, internalConstructor);
+        return new NestedBorrowedFields(structObj);
     }
 
     // Return all fields corresponding to lifetime `'x` 
@@ -156,5 +182,9 @@ export class NestedBorrowedFields {
         
             diplomatReceive.free();
         }
+    }
+
+    constructor(structObj) {
+        return this.#internalConstructor(...arguments)
     }
 }

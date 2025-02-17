@@ -3,8 +3,9 @@ use diplomat_core::hir::borrowing_param::{BorrowedLifetimeInfo, ParamBorrowInfo}
 use diplomat_core::hir::{
     self, BackendAttrSupport, Borrow, Callback, DocsUrlGenerator, InputOnly, Lifetime, LifetimeEnv,
     Lifetimes, MaybeOwn, MaybeStatic, Method, Mutability, OpaquePath, Optional, OutType, Param,
-    PrimitiveType, ReturnableStructDef, SelfType, Slice, SpecialMethod, StringEncoding,
-    StructField, StructPath, StructPathLike, TraitIdGetter, TyPosition, Type, TypeContext, TypeDef,
+    PrimitiveType, ReturnableStructDef, ReturnableStructPath, SelfType, Slice, SpecialMethod,
+    StringEncoding, StructField, StructPath, StructPathLike, TraitIdGetter, TyPosition, Type,
+    TypeContext, TypeDef,
 };
 use diplomat_core::hir::{ReturnType, SuccessType};
 
@@ -35,13 +36,16 @@ pub(crate) fn attr_support() -> BackendAttrSupport {
     a.named_constructors = false; // TODO
     a.fallible_constructors = false; // TODO
     a.accessors = false;
-    a.stringifiers = false; // TODO
+    a.stringifiers = true;
     a.comparators = false; // TODO
     a.iterators = true;
     a.iterables = true;
     a.indexing = true;
     a.callbacks = true;
     a.traits = true;
+    a.custom_errors = true;
+    a.traits_are_send = true;
+    a.traits_are_sync = true;
 
     a
 }
@@ -261,7 +265,7 @@ struct TyGenContext<'a, 'cx> {
     callback_params: &'a mut Vec<CallbackParamInfo>,
 }
 
-impl<'a, 'cx> TyGenContext<'a, 'cx> {
+impl<'cx> TyGenContext<'_, 'cx> {
     fn gen_infallible_return_type_name(&self, success_type: &SuccessType) -> Cow<'cx, str> {
         match success_type {
             SuccessType::Unit => self.formatter.fmt_void().into(),
@@ -273,13 +277,9 @@ impl<'a, 'cx> TyGenContext<'a, 'cx> {
     fn gen_return_type_name(&self, result_ty: &ReturnType) -> Cow<'cx, str> {
         match *result_ty {
             ReturnType::Infallible(ref success) => self.gen_infallible_return_type_name(success),
-            ReturnType::Fallible(ref ok, ref err) => {
+            ReturnType::Fallible(ref ok, _) => {
                 let ok_type = self.gen_infallible_return_type_name(ok);
-                let err_type = err
-                    .as_ref()
-                    .map(|err| self.gen_type_name(err, None))
-                    .unwrap_or_else(|| "Unit".into());
-                format!("Res<{ok_type}, {err_type}>").into()
+                format!("Result<{ok_type}>").into()
             }
             ReturnType::Nullable(ref success) => self
                 .formatter
@@ -599,11 +599,11 @@ return string{return_type_modifier}"#
                 _ => todo!(),
             },
             Slice::Primitive(Some(_), prim_ty) => {
-                let prim_ty = self.formatter.fmt_primitive_as_ffi(*prim_ty);
+                let prim_ty = self.formatter.fmt_primitive_as_kt(*prim_ty);
                 format!("    return PrimitiveArrayTools.get{prim_ty}Array({val_name}){return_type_modifier}")
             }
             Slice::Primitive(None, prim_ty) => {
-                let prim_ty = self.formatter.fmt_primitive_as_ffi(*prim_ty);
+                let prim_ty = self.formatter.fmt_primitive_as_kt(*prim_ty);
                 let prim_ty_array = format!("{prim_ty}Array");
                 Self::boxed_slice_return(prim_ty_array.as_str(), val_name, return_type_modifier)
             }
@@ -689,13 +689,16 @@ return string{return_type_modifier}"#
         cleanups: &[Cow<'d, str>],
         val_name: &'d str,
         return_type_modifier: &'d str,
+        err_cast: &'d str,
         o: &'d OutType,
         use_finalizers_not_cleaners: bool,
     ) -> String {
         match o {
             Type::Primitive(prim) => {
                 let maybe_unsized_modifier = self.formatter.fmt_unsized_conversion(*prim, false);
-                format!("return ({val_name}{maybe_unsized_modifier}){return_type_modifier}")
+                format!(
+                    "return {err_cast}({val_name}{maybe_unsized_modifier}){return_type_modifier}"
+                )
             }
             Type::Opaque(opaque_path) => self.gen_opaque_return_conversion(
                 opaque_path,
@@ -721,7 +724,7 @@ return string{return_type_modifier}"#
             Type::Enum(enm) => {
                 let return_type = enm.resolve(self.tcx);
                 format!(
-                    "return {}.fromNative({val_name}){return_type_modifier}",
+                    "return {err_cast}({}.fromNative({val_name})){return_type_modifier}",
                     return_type.name
                 )
             }
@@ -814,6 +817,7 @@ val intermediateOption = {val_name}.option() ?: return null
                 cleanups,
                 val_name,
                 return_type_postfix,
+                "", // error cast
                 o,
                 use_finalizers_not_cleaners,
             ),
@@ -854,17 +858,55 @@ val intermediateOption = {val_name}.option() ?: return null
                 let err_path = err
                     .as_ref()
                     .map(|err| {
+                        match err {
+                            OutType::Opaque(OpaquePath{tcx_id: id, ..}) => {
+                                let resolved = self.tcx.resolve_opaque(*id);
+                                if !resolved.attrs.custom_errors {
+                                    panic!("Opaque type {:?} must have the `error` attribute to be used as an error result", resolved.name);
+                                }
+                            },
+                            OutType::Struct(ReturnableStructPath::Struct(path)) => {
+                                let resolved = self.tcx.resolve_struct(path.tcx_id);
+                                if !resolved.attrs.custom_errors {
+                                    panic!("Struct type {:?} must have the `error` attribute to be used as an error result", resolved.name);
+                                }
+                            },
+                            OutType::Struct(ReturnableStructPath::OutStruct(path)) => {
+                                let resolved = self.tcx.resolve_out_struct(path.tcx_id);
+                                if !resolved.attrs.custom_errors {
+                                    panic!("Struct type {:?} must have the `error` attribute to be used as an error result", resolved.name);
+                                }
+                            }
+                            Type::Enum(enm) => {
+                                let resolved = enm.resolve(self.tcx);
+                                    if !resolved.attrs.custom_errors {
+                                        panic!("Struct type {:?} must have the `error` attribute to be used as an error result", resolved.name);
+                                    }
+                            }
+                            _ => {}
+                        }
+                        let err_converter = ".err()";
+                        let err_cast = if let Type::Primitive(prim) = err {
+                            self.formatter.fmt_primitive_error_type(*prim)
+                        } else if let Type::Enum(enm) = err {
+                            let return_type = enm.resolve(self.tcx);
+                            (return_type.name.to_string() + "Error").into()
+                        } else {
+                            "".into()
+                        };
+
                         self.gen_out_type_return_conversion(
                             method,
                             &method_lifetimes_map,
                             cleanups,
                             "returnVal.union.err",
-                            ".err()",
+                            err_converter,
+                            &err_cast,
                             err,
                             use_finalizers_not_cleaners,
                         )
                     })
-                    .unwrap_or_else(|| "return Err(Unit)".into());
+                    .unwrap_or_else(|| "return UnitError().err()".into());
 
                 #[derive(Template)]
                 #[template(path = "kotlin/ResultReturn.kt.jinja", escape = "none")]
@@ -938,11 +980,17 @@ returnVal.option() ?: return null
 
     fn gen_cleanup(&self, param_name: Cow<'cx, str>, slice: Slice) -> Option<Cow<'cx, str>> {
         match slice {
-            Slice::Str(Some(_), _) => Some(format!("{param_name}Mem.close()").into()),
+            Slice::Str(Some(_), _) => {
+                Some(format!("if ({param_name}Mem != null) {param_name}Mem.close()").into())
+            }
             Slice::Str(_, _) => None,
-            Slice::Primitive(Some(_), _) => Some(format!("{param_name}Mem.close()").into()),
+            Slice::Primitive(Some(_), _) => {
+                Some(format!("if ({param_name}Mem != null) {param_name}Mem.close()").into())
+            }
             Slice::Primitive(_, _) => None,
-            Slice::Strs(_) => Some(format!("{param_name}Mem.forEach {{it.close()}}").into()),
+            Slice::Strs(_) => {
+                Some(format!("{param_name}Mem.forEach {{if (it != null) it.close()}}").into())
+            }
             _ => todo!(),
         }
     }
@@ -1192,11 +1240,21 @@ returnVal.option() ?: return null
                     panic!("Can only have one iterable method per opaque struct")
                 }
             }
-            _ => format!(
-                "fun {}({}): {return_ty}",
-                self.formatter.fmt_method_name(method),
-                params
-            ),
+            Some(SpecialMethod::Stringifier) => {
+                if !special_methods.has_stringifier {
+                    special_methods.has_stringifier = true;
+                    "override fun toString(): String".to_string()
+                } else {
+                    panic!("Can only have one stringifier method per opaque struct")
+                }
+            }
+            _ => {
+                format!(
+                    "fun {}({}): {return_ty}",
+                    self.formatter.fmt_method_name(method),
+                    params
+                )
+            }
         };
 
         MethodTpl {
@@ -1349,6 +1407,7 @@ returnVal.option() ?: return null
             callback_params: &'a [CallbackParamInfo],
             use_finalizers_not_cleaners: bool,
             docs: String,
+            is_custom_error: bool,
         }
 
         (
@@ -1366,6 +1425,7 @@ returnVal.option() ?: return null
                 callback_params: self.callback_params.as_ref(),
                 use_finalizers_not_cleaners,
                 docs: self.formatter.fmt_docs(&ty.docs),
+                is_custom_error: ty.attrs.custom_errors,
             }
             .render()
             .expect("failed to generate struct"),
@@ -1456,6 +1516,7 @@ returnVal.option() ?: return null
             callback_params: &'a [CallbackParamInfo],
             lifetimes: Vec<Cow<'a, str>>,
             docs: String,
+            is_custom_error: bool,
         }
 
         let fields = ty
@@ -1492,6 +1553,7 @@ returnVal.option() ?: return null
                 callback_params: self.callback_params.as_ref(),
                 lifetimes,
                 docs: self.formatter.fmt_docs(&ty.docs),
+                is_custom_error: ty.attrs.custom_errors,
             }
             .render()
             .expect("Failed to render struct template"),
@@ -1562,7 +1624,7 @@ returnVal.option() ?: return null
                     + (if !cur.is_empty() { ", " } else { "" })
                     + &format!("{}: {}", in_name, in_ty)
             });
-        let (native_output_type, return_modification) = match *method.output {
+        let (native_output_type, return_modification, return_cast) = match *method.output {
             Some(ref ty) => (
                 self.gen_native_type_name(ty, None).into(),
                 match ty {
@@ -1571,8 +1633,13 @@ returnVal.option() ?: return null
                     _ => "",
                 }
                 .into(),
+                match ty {
+                    Type::Primitive(prim) => self.formatter.fmt_unsigned_primitive_ffi_cast(prim),
+                    _ => "",
+                }
+                .into(),
             ),
-            None => ("Unit".into(), "".into()),
+            None => ("Unit".into(), "".into(), "".into()),
         };
         TraitMethodInfo {
             name: method_name,
@@ -1582,6 +1649,7 @@ returnVal.option() ?: return null
             },
             native_output_type,
             return_modification,
+            return_cast,
             input_params_and_types: native_input_params_and_types.join(", "),
             non_native_params_and_types,
             input_params: native_input_names.join(", "),
@@ -1759,6 +1827,7 @@ returnVal.option() ?: return null
             companion_methods: &'d [String],
             native_methods: &'d [NativeMethodInfo],
             callback_params: &'d [CallbackParamInfo],
+            is_custom_error: bool,
             docs: String,
         }
 
@@ -1774,6 +1843,7 @@ returnVal.option() ?: return null
             native_methods: native_methods.as_ref(),
             callback_params: self.callback_params.as_ref(),
             docs: self.formatter.fmt_docs(&ty.docs),
+            is_custom_error: ty.attrs.custom_errors,
         }
         .render()
         .unwrap_or_else(|err| panic!("Failed to render Enum {{type_name}}\n\tcause: {err}"));
@@ -1905,6 +1975,7 @@ struct SpecialMethods {
     iterator_type: Option<String>,
     indexer_type: Option<IndexerType>,
     iterable_type: Option<String>,
+    has_stringifier: bool,
 }
 
 struct IndexerType {
@@ -1925,6 +1996,7 @@ impl SpecialMethodsImpl {
             iterator_type,
             indexer_type,
             iterable_type,
+            has_stringifier: _,
         }: SpecialMethods,
     ) -> Self {
         let interfaces = iterator_type
@@ -1971,6 +2043,7 @@ struct TraitMethodInfo {
     output_type: String,
     native_output_type: String,
     return_modification: String,
+    return_cast: String,
     non_native_params_and_types: String,
     docs: String,
 }

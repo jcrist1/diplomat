@@ -3,24 +3,36 @@ import { UnimportedEnum } from "./UnimportedEnum.mjs"
 import wasm from "./diplomat-wasm.mjs";
 import * as diplomatRuntime from "./diplomat-runtime.mjs";
 
-export class ImportedStruct {
 
+
+export class ImportedStruct {
+    
     #foo;
+    
     get foo()  {
         return this.#foo;
-    }
+    } 
     set foo(value) {
         this.#foo = value;
     }
-
+    
     #count;
+    
     get count()  {
         return this.#count;
-    }
+    } 
     set count(value) {
         this.#count = value;
     }
-    constructor(structObj) {
+    
+    /** Create `ImportedStruct` from an object that contains all of `ImportedStruct`s fields.
+    * Optional fields do not need to be included in the provided object.
+    */
+    static fromFields(structObj) {
+        return new ImportedStruct(structObj);
+    }
+
+    #internalConstructor(structObj) {
         if (typeof structObj !== "object") {
             throw new Error("ImportedStruct's constructor takes an object of ImportedStruct's fields.");
         }
@@ -37,6 +49,7 @@ export class ImportedStruct {
             throw new Error("Missing required field count.");
         }
 
+        return this;
     }
 
     // Return this struct in FFI function friendly format.
@@ -51,6 +64,18 @@ export class ImportedStruct {
         forcePadding
     ) {
         return [this.#foo.ffiValue, this.#count, ...diplomatRuntime.maybePaddingFields(forcePadding, 3 /* x i8 */)]
+    }
+
+    static _fromSuppliedValue(internalConstructor, obj) {
+        if (internalConstructor !== diplomatRuntime.internalConstructor) {
+            throw new Error("_fromSuppliedValue cannot be called externally.");
+        }
+
+        if (obj instanceof ImportedStruct) {
+            return obj;
+        }
+
+        return ImportedStruct.fromFields(obj);
     }
 
     _writeToArrayBuffer(
@@ -73,12 +98,16 @@ export class ImportedStruct {
         if (internalConstructor !== diplomatRuntime.internalConstructor) {
             throw new Error("ImportedStruct._fromFFI is not meant to be called externally. Please use the default constructor.");
         }
-        var structObj = {};
+        let structObj = {};
         const fooDeref = diplomatRuntime.enumDiscriminant(wasm, ptr);
         structObj.foo = new UnimportedEnum(diplomatRuntime.internalConstructor, fooDeref);
         const countDeref = (new Uint8Array(wasm.memory.buffer, ptr + 4, 1))[0];
         structObj.count = countDeref;
 
-        return new ImportedStruct(structObj, internalConstructor);
+        return new ImportedStruct(structObj);
+    }
+
+    constructor(structObj) {
+        return this.#internalConstructor(...arguments)
     }
 }
