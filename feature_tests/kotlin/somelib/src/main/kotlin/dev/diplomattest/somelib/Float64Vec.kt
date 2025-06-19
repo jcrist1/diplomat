@@ -31,7 +31,9 @@ class Float64Vec internal constructor (
 
     internal class Float64VecCleaner(val handle: Pointer, val lib: Float64VecLib) : Runnable {
         override fun run() {
+            println("Destroy")
             lib.Float64Vec_destroy(handle)
+            println("Destroyed")
         }
     }
 

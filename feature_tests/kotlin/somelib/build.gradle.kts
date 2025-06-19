@@ -21,6 +21,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.9.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("net.jqwik:jqwik-kotlin:1.9.3")
     testImplementation("io.mockk:mockk:1.13.10")
 }
 publishing {
@@ -43,6 +44,13 @@ publishing {
 
 tasks.test {
     useJUnitPlatform()
+    testLogging {
+        events ("passed", "skipped", "failed", "standardOut", "standardError")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showExceptions = true
+        showStackTraces = true
+    }
 }
 
 kotlin {
