@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Namespacing - The Diplomat Book</title>
+        <title>Kotlin - The Diplomat Book</title>
 
 
         <!-- Custom HTML head -->
@@ -174,35 +174,85 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="namespacing"><a class="header" href="#namespacing">Namespacing</a></h1>
-<p>(Supported by <code>cpp</code>, queried with <code>supports = namespacing</code>)</p>
-<p>This attribute can be applied on types and on bridge modules (applying to all types in the module).
-It allows code to be organized under one or more namespaces.</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[diplomat::bridge]
-#[diplomat::attr(auto, namespace = "mylib")]
-mod ffi {
-    #[diplomat::opaque]
-    struct Foo;
-
-    #[diplomat::opaque]
-    struct Bar;
-}
-<span class="boring">}</span></code></pre>
-<p>Here, in C++ <code>Foo</code> and <code>Bar</code> will both be available as <code>mylib::Foo</code> and <code>mylib::Bar</code>.</p>
-<p>Nested namespaces are technically supported using things like <code>mylib::mymodule</code>, however they’re not tested and support is brittle, so use at your own risk (<a href="https://github.com/rust-diplomat/diplomat/issues/591">#591</a>).</p>
-<p>There is some discussion over separating the concept of a namespace and a library in <a href="https://github.com/rust-diplomat/diplomat/issues/589">#589</a>.</p>
+                        <h1 id="kotlin-backend"><a class="header" href="#kotlin-backend">Kotlin Backend</a></h1>
+<p>The kotlin backend uses JNA to wrap the ABI types from diplomat into an ergonomic library for use in the JVM.
+The backend ensures safe sharing and disposal of memory, but it is still experimental so bugs may exist.</p>
+<p>To run the kotlin backend you need to provide some configuration</p>
+<pre><code class="language-sh">diplomat-tool -e {PATH_TO_LIB.RS} -c {CONFIG_FILE} --config {CONFIG_OVERRIDE_1} --config {CONFIG_OVERRIDE_2} kotlin {OUTPUT_PATH}
+</code></pre>
+<p>The configuration consists of these options:</p>
+<ul>
+<li>
+<p><code>lib-name</code> - the name of the library. This can be different to the rust library name, but native access will
+look for a file with the name <code>lib{lib-name}.so</code> (linux) or <code>lib{lib-name}.dylib</code> (macos) or <code>{lib-name}.dll</code> (windows)
+If you include this in <code>src/main/resources</code> then the library should be packaged automatically when you publish
+the kotlin library. With the appropriate directory structure you can include binaries for multple operating
+systems and architectures.</p>
+</li>
+<li>
+<p><code>kotlin.domain</code> - this is the group of the package, e.g. <code>io.apache</code>.</p>
+</li>
+<li>
+<p><code>kotlin.use_finalizers_not_cleaners</code> - An optional binary value. By default kotlin uses the Cleaner API from
+Java 9 onwards for cleaning up the native memory alloated by the diplomat library. It can, however, be
+configured to use the finalizer api from Java 8 and prior.</p>
+</li>
+<li>
+<p><code>kotlin.scaffold</code> - an optional binary value. If it is set to <code>true</code>, <code>diplomat-tool</code> will scaffold a project
+for you with configuration corresponding to your group and library name.</p>
+</li>
+<li>
+<p><code>kotlin.dylib-name</code> - an optional string. If set, instead of loading a <code>lib{lib-name}.ext</code> binary, Diplomat
+will look for a <code>lib{dylib-name}.ext</code>.</p>
+</li>
+</ul>
+<p>Diplomat always create the following structure in the <code>OUTPUT_PATH</code></p>
+<pre><code>├── src 
+│   └── main
+│       └── kotlin
+│           └──{group-tld}
+│               └──{group-name}
+│                   └──{lib-name} 
+│                       ├── GeneratedFile.kt
+│                       ├── ...
+│                       ├── Lib.kt
+│                       ├── ...
+</code></pre>
+<p>The <code>Lib.kt</code> file includes some utility methods that the library uses, as well as a dedicated cleaner.
+If you choose <code>scaffold</code> then it will also generate a couple of config files</p>
+<pre><code>├── src 
+│   └── ...
+├── build.gradle.kts
+├── setttings.gradle.kts
+</code></pre>
+<h2 id="examples"><a class="header" href="#examples">Examples</a></h2>
+<p>The best way to learn to use the kotlin backend is first understand diplomat generally by reading this <a href="../SUMMARY.html">book</a>.
+Then look at the <code>example</code> and <code>feature_tests</code> directories in the diplomat project. Then you can look at the tests
+for how to use them</p>
+<ul>
+<li>Feature tests: <a href="https://github.com/rust-diplomat/diplomat/tree/main/feature_tests/src/">rust source</a>, <a href="https://github.com/rust-diplomat/diplomat/tree/main/feature_tests/kotlin/somelib/src/test/kotlin/dev/diplomattest/somelib">kotlin usage</a></li>
+<li>Example: <a href="https://github.com/rust-diplomat/diplomat/tree/main/example/src/">rust source</a>, <a href="https://github.com/rust-diplomat/diplomat/tree/main/example/kotlin/somelib/src/test/kotlin/dev/diplomattest/somelib">kotlin usage</a></li>
+</ul>
+<h3 id="callbacks"><a class="header" href="#callbacks">Callbacks</a></h3>
+<p>The kotlin backend supports passing kotlin functions and closures as callbacks to native code. To do this you need to add the
+enable the <code>jvm-callback-support</code> feature when you add  the diplomat runtime to your project. For examples on how to use them
+look in the <code>feature_tests</code> directory of the diplomat project. This is a bit conceptually different to the rest of diplomat
+so here some specific examples</p>
+<ul>
+<li><a href="https://github.com/rust-diplomat/diplomat/blob/main/feature_tests/src/callbacks.rs">rust code</a></li>
+<li><a href="https://github.com/rust-diplomat/diplomat/blob/main/feature_tests/kotlin/somelib/src/main/kotlin/dev/diplomattest/somelib/CallbackWrapper.kt">generated kotlin code</a></li>
+<li><a href="https://github.com/rust-diplomat/diplomat/blob/main/feature_tests/kotlin/somelib/src/test/kotlin/dev/diplomattest/somelib/CallbackWrapperTest.kt">example usage</a></li>
+</ul>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../attrs/rename.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../backends/intro.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../attrs/constructors.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../backends/nanobind.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -212,11 +262,11 @@ mod ffi {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../attrs/rename.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../backends/intro.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../attrs/constructors.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../backends/nanobind.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>

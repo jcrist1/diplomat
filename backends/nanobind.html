@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Namespacing - The Diplomat Book</title>
+        <title>Nanobind - The Diplomat Book</title>
 
 
         <!-- Custom HTML head -->
@@ -174,37 +174,69 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="namespacing"><a class="header" href="#namespacing">Namespacing</a></h1>
-<p>(Supported by <code>cpp</code>, queried with <code>supports = namespacing</code>)</p>
-<p>This attribute can be applied on types and on bridge modules (applying to all types in the module).
-It allows code to be organized under one or more namespaces.</p>
-<pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
-</span><span class="boring">fn main() {
-</span>#[diplomat::bridge]
-#[diplomat::attr(auto, namespace = "mylib")]
+                        <h1 id="nanobind-backend"><a class="header" href="#nanobind-backend">Nanobind Backend</a></h1>
+<h2 id="debugging"><a class="header" href="#debugging">Debugging</a></h2>
+<p>Nanobind <code>.pyd</code> files can be stepped through using any debugger. As long as you’ve built the <code>.pyd</code> file with debugging symbols, you can attach to any running Python process that has the <code>.pyd</code> imported. Here are the steps:</p>
+<ol>
+<li>Launch a Python process and import the library.</li>
+<li>Get the PID of the Python process (<code>import os; print(os.getpid())</code>)</li>
+<li>Attach the debugger to the process (for LLDB, this is <code>lldb -p PID</code>).</li>
+<li>Add breakpoints as you would normally.</li>
+</ol>
+<h2 id="slices"><a class="header" href="#slices">Slices</a></h2>
+<h3 id="mutable-slices-and-copying-on-the-boundary"><a class="header" href="#mutable-slices-and-copying-on-the-boundary">Mutable Slices and Copying on the Boundary</a></h3>
+<p>Nanobind supports taking mutable slices:</p>
+<pre><code>#[diplomat::bridge]
 mod ffi {
-    #[diplomat::opaque]
-    struct Foo;
+    #[diplomat::attr(auto, abi_compatible)]
+    pub struct Foo {
+        x: i32,
+        y : i32
+    }
 
-    #[diplomat::opaque]
-    struct Bar;
+    impl Foo {
+        pub fn takes_mut_slice(sl : &amp;mut [Foo]) {
+            for s in sl.iter() {
+                s.x += 1;
+            }
+        }
+    }
 }
-<span class="boring">}</span></code></pre>
-<p>Here, in C++ <code>Foo</code> and <code>Bar</code> will both be available as <code>mylib::Foo</code> and <code>mylib::Bar</code>.</p>
-<p>Nested namespaces are technically supported using things like <code>mylib::mymodule</code>, however they’re not tested and support is brittle, so use at your own risk (<a href="https://github.com/rust-diplomat/diplomat/issues/591">#591</a>).</p>
-<p>There is some discussion over separating the concept of a namespace and a library in <a href="https://github.com/rust-diplomat/diplomat/issues/589">#589</a>.</p>
+</code></pre>
+<p>However, if you attempt to mutate the slice in Python:</p>
+<pre><code class="language-python">f = [somelib.Foo(x=10,y=10)]
+print([foo.x for foo in f])
+somelib.Foo.takes_mut_slice(f)
+print([foo.x for foo in f])
+</code></pre>
+<p>You will get an error:</p>
+<pre><code>[10]
+TypeError: takes_mut_slice(): incompatible function arguments. The following argument types are supported:
+    1. mutable_slice(s: collections.abc.Sequence[somelib.somelib.Foo]) -&gt; None
+Invoked with types: list
+</code></pre>
+<p>Diplomat’s bindings will automatically do conversion for immutable slice types, by copying to a list type that Nanobind understands. However, if you wish to pass over a reference to a given list, Diplomat will automatically generate a <code>TSlice</code> type (i.e., <code>somelib.FooSlice</code>):</p>
+<pre><code class="language-python">f = somelib.FooSlice([somelib.Foo(x=10, y=10)])
+print([foo.x for foo in f])
+somelib.Foo.takes_mut_slice(f)
+print([foo.x for foo in f])
+</code></pre>
+<p>Which prints the correct result:</p>
+<pre><code>[10]
+[11]
+</code></pre>
+<h4 id="explanation"><a class="header" href="#explanation">Explanation</a></h4>
+<p>Converting Rust types to and from Python is not straightforward. Every <code>list</code> object in Python is a <a href="https://docs.python.org/3/c-api/list.html">sequence of <code>PyObject</code> types</a> in C. For passing information to and from Rust, this makes straightforward conversion extremely difficult. Instead, nanobind will copy Python types into C++ memory layouts it understands.</p>
+<p>This is why we the <code>somelib.FooSlice</code> type exists. In nanobind terminology, this is a <a href="https://nanobind.readthedocs.io/en/latest/exchanging.html#option-2-bindings">bound object</a>, or a class that exists in Python that allows us to easily grab its memory and manipulate in C++. Any <code>list</code> you pass into a parameter that takes <code>&amp;[Foo]</code> as an input type will copy the contents of the <code>list</code> upon conversion into C/C++ into <code>somelib.FooSlice</code>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../attrs/rename.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../backends/kotlin.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../attrs/constructors.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                                <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                            </a>
 
                         <div style="clear: both"></div>
                     </nav>
@@ -212,13 +244,10 @@ mod ffi {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../attrs/rename.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../backends/kotlin.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../attrs/constructors.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
-                        <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
-                    </a>
             </nav>
 
         </div>
