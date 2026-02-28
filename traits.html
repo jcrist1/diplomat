@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Attributes - The Diplomat Book</title>
+        <title>Traits - The Diplomat Book</title>
 
 
         <!-- Custom HTML head -->
@@ -12,33 +12,33 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="theme-color" content="#ffffff">
 
-        <link rel="icon" href="../favicon-de23e50b.svg">
-        <link rel="shortcut icon" href="../favicon-8114d1fc.png">
-        <link rel="stylesheet" href="../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../css/general-2459343d.css">
-        <link rel="stylesheet" href="../css/chrome-ae938929.css">
-        <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-2459343d.css">
+        <link rel="stylesheet" href="css/chrome-ae938929.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
-        <link rel="stylesheet" href="../fonts/fonts-9644e21d.css">
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
 
         <!-- Highlight.js Stylesheets -->
-        <link rel="stylesheet" id="mdbook-highlight-css" href="../highlight-493f70e1.css">
-        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="../tomorrow-night-4c0ae647.css">
-        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="../ayu-highlight-3fdfc3ac.css">
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
 
         <!-- Custom theme stylesheets -->
 
 
         <!-- Provide site root and default themes to javascript -->
         <script>
-            const path_to_root = "../";
+            const path_to_root = "";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-736ee12d.js";
+            window.path_to_searchindex_js = "searchindex-736ee12d.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-3258c0a7.js"></script>
+        <script src="toc-3258c0a7.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -105,7 +105,7 @@
             <!-- populated by js -->
             <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
             <noscript>
-                <iframe class="sidebar-iframe-outer" src="../toc.html"></iframe>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
             </noscript>
             <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -140,7 +140,7 @@
                     <h1 class="menu-title">The Diplomat Book</h1>
 
                     <div class="right-buttons">
-                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
                             <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
                         </a>
 
@@ -174,75 +174,35 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="attributes"><a class="header" href="#attributes">Attributes</a></h1>
-<p>demo_gen does a lot in its attempt to automagically generate demonstrations for you. Sometimes however, hands on configuration is required.</p>
-<p>Find below a list of the attributes that demo_gen supports.</p>
-<h2 id="diplomatattr"><a class="header" href="#diplomatattr">#[diplomat::attr]</a></h2>
-<p>demo_gen supports all attributes listed in the <a href="../attrs.html">attrs chapter</a>. You mostly will want to use the <code>disable</code> attribute, to disable any functions that you may not want to include in output.</p>
-<p>Because demo_gen is so heavily based on the JS backend, any <code>#[diplomat::attr]</code>s that apply to the JS backend will also apply to the demo_gen backend. So for example, any methods disabled in the JS backend will also be disabled in demo_gen’s output.</p>
-<h2 id="diplomatdemo"><a class="header" href="#diplomatdemo">#[diplomat::demo]</a></h2>
-<p>This is the core attribute that demo_gen looks for in configuring its output. There are a few supported attributes currently:</p>
-<h3 id="diplomatdemogenerate"><a class="header" href="#diplomatdemogenerate">#[diplomat::demo(generate)]</a></h3>
-<p>Used in explicit generation of output. See <a href="./markup.html">markup</a> for more.</p>
-<h3 id="diplomatdemodefault_constructor"><a class="header" href="#diplomatdemodefault_constructor">#[diplomat::demo(default_constructor)]</a></h3>
-<p>demo_gen will throw errors for any Opaque types that do not have a method labelled with this attribute. demo_gen also looks for any Opaque methods labelled with <code>#[diplomat::attr(auto, constructor)]</code> as an alternative.</p>
-<p>You should label each Opaque in your FFI definition with a <code>default_constructor</code> attribute, where the method is one you expect most users to call regularly when trying to create the Opaque in question. If your Opaque does not have an associated constructor method in its <code>impl</code> block, you should consider disabling functions (as this sort of behavior is too advanced for demo_gen to parse correctly).</p>
-<p>For reasons on why demo_gen requires explicit labelling of Opaque constructors, see <a href="https://github.com/rust-diplomat/diplomat/blob/main/docs/demo_gen.md">the demo_gen design doc</a>.</p>
-<h3 id="diplomatdemoexternal"><a class="header" href="#diplomatdemoexternal">#[diplomat::demo(external)]</a></h3>
-<p>Can be used above a parameter, struct field, or Opaque type.</p>
-<p>It represents any input that you want to specify custom behavior for in the <a href="./renderer.html">rendering</a> Javascript.</p>
-<p>For example: In ICU4X, we have a <code>DataProvider</code> Opaque type that must be compiled ahead of time, and so we flag it as an external type:</p>
+                        <h1 id="traits"><a class="header" href="#traits">Traits</a></h1>
+<p>Backends that support traits (with <code>#[diplomat::cfg(supports=traits)]</code>) can be passed in as input-only parameters:</p>
 <pre><code class="language-rs">#[diplomat::bridge]
 mod ffi {
-	#[diplomat::opaque]
-	#[diplomat::demo(external)]
-	pub struct DataProvider;
+    pub trait SomeTrait {
+        fn some_function(&amp;self, value : u32) -&gt; i64;
+        fn some_other_function()
+    }
+
+    #[diplomat::opaque]
+    pub struct SomeStruct();
+    impl SomeStruct {
+        pub fn use_trait(t : impl SomeTrait) -&gt; i64 {
+            t.some_function(20)
+        }
+    }
 }
 </code></pre>
-<p>We then override the <a href="renderer.html#runtimemjs">default renderer’s runtime.mjs</a> file to provide the compiled <code>DataProvider</code> when it is requested.</p>
-<h3 id="diplomatdemoinput"><a class="header" href="#diplomatdemoinput">#[diplomat::demo(input(…))]</a></h3>
-<p>For configuring user input to your demos. <code>input(...)</code> takes in a comma separated list of values.</p>
-<p>May be used on parameters or struct fields to configure specific properties passed to the <a href="renderer.html">renderer</a>.</p>
-<p>Here are some valid <code>input</code> values:</p>
-<ul>
-<li><code>input(label = "Label Here")</code>. Changes the label a given function parameter will have in the output.</li>
-</ul>
-<h4 id="input-example"><a class="header" href="#input-example">Input Example</a></h4>
-<p>If we modify our <a href="quickstart.html">quickstart</a> example, we can add <code>#[diplomat::demo(input(...))]</code> labels to the function parameters:</p>
-<pre><code class="language-rs">#[diplomat::bridge]
-mod ffi {
-    use std::fmt::Write;
-
-	#[diplomat::opaque]
-	#[diplomat::rust_link(basic_adder, Mod)]
-	pub struct AddResult;
-
-	impl AddResult {
-		pub fn get_add_str(
-			#[diplomat::demo(input(label = "x"))]
-			left : u32, 
-			#[diplomat::demo(input(label = "y"))]
-			right : u32, write: &amp;mut DiplomatWrite) {
-			write.write_str(&amp;format!("{}", basic_adder::add(left, right))).unwrap();
-			write.flush();
-		}
-	}
-}
-</code></pre>
-<p>Which creates the following HTML output:</p>
-<p><img src="images/demo_output_renamed.png" alt="“AddResult.getAddStr” in large text. Below are two inputs: one labelled “x” that has a value of 10, and one labelled “y” that has a value of 2. Below is a submit button. There is output below the button, with the label “Output” and a value of 12."></p>
-<h3 id="diplomatdemocustom_func"><a class="header" href="#diplomatdemocustom_func">#[diplomat::demo(custom_func=“…”)]</a></h3>
-<p>See <a href="./custom_functions.html">Making Custom Functions</a>.</p>
+<p>Traits are treated internally like holders of <a href="./callbacks.html">callbacks</a>, and so support all the same types that callbacks do.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../demo_gen/quickstart.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="structs.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../demo_gen/markup.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="option.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -252,11 +212,11 @@ mod ffi {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../demo_gen/quickstart.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="structs.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../demo_gen/markup.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="option.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
@@ -276,13 +236,13 @@ mod ffi {
         </script>
 
 
-        <script src="../elasticlunr-ef4e11c1.min.js"></script>
-        <script src="../mark-09e88c2c.min.js"></script>
-        <script src="../searcher-c2a407aa.js"></script>
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-c2a407aa.js"></script>
 
-        <script src="../clipboard-1626706a.min.js"></script>
-        <script src="../highlight-abc7f01d.js"></script>
-        <script src="../book-a0b12cfe.js"></script>
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-a0b12cfe.js"></script>
 
         <!-- Custom JS scripts -->
 
