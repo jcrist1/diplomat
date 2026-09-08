@@ -15,8 +15,8 @@
         <link rel="icon" href="../favicon-de23e50b.svg">
         <link rel="shortcut icon" href="../favicon-8114d1fc.png">
         <link rel="stylesheet" href="../css/variables-8adf115d.css">
-        <link rel="stylesheet" href="../css/general-2459343d.css">
-        <link rel="stylesheet" href="../css/chrome-ae938929.css">
+        <link rel="stylesheet" href="../css/general-e96d0476.css">
+        <link rel="stylesheet" href="../css/chrome-d279d366.css">
         <link rel="stylesheet" href="../css/print-9e4910d8.css" media="print">
 
         <!-- Fonts -->
@@ -35,10 +35,10 @@
             const path_to_root = "../";
             const default_light_theme = "light";
             const default_dark_theme = "navy";
-            window.path_to_searchindex_js = "../searchindex-736ee12d.js";
+            window.path_to_searchindex_js = "../searchindex-406269cc.js";
         </script>
         <!-- Start loading toc.js asap -->
-        <script src="../toc-3258c0a7.js"></script>
+        <script src="../toc-548185b0.js"></script>
     </head>
     <body>
     <div id="mdbook-help-container">
@@ -175,6 +175,90 @@
                 <div id="mdbook-content" class="content">
                     <main>
                         <h1 id="nanobind-backend"><a class="header" href="#nanobind-backend">Nanobind Backend</a></h1>
+<h2 id="type-conversion"><a class="header" href="#type-conversion">Type Conversion</a></h2>
+<p>The Nanobind backend is backed by the <a href="./cpp.html#type-conversion">C++ backend</a> (through <a href="https://nanobind.readthedocs.io/en/latest/">Nanobind</a>), so a lot of type conversions are handled through Nanobind’s discretion, with some exceptions.</p>
+<h3 id="primitives"><a class="header" href="#primitives">Primitives</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Rust Type</th><th>Python Type</th></tr>
+</thead>
+<tbody>
+<tr><td>u8</td><td>int</td></tr>
+<tr><td>u16</td><td>int</td></tr>
+<tr><td>u32</td><td>int</td></tr>
+<tr><td>u64</td><td>int</td></tr>
+<tr><td>u128</td><td>unsupported</td></tr>
+<tr><td>i8</td><td>int</td></tr>
+<tr><td>i16</td><td>int</td></tr>
+<tr><td>i32</td><td>int</td></tr>
+<tr><td>i64</td><td>int</td></tr>
+<tr><td>i128</td><td>unsupported</td></tr>
+<tr><td>bool</td><td>bool</td></tr>
+<tr><td>char</td><td>str</td></tr>
+<tr><td>isize</td><td>int</td></tr>
+<tr><td>usize</td><td>int</td></tr>
+<tr><td>f32</td><td>float</td></tr>
+<tr><td>f64</td><td>float</td></tr>
+</tbody>
+</table>
+</div>
+<h3 id="struct-types"><a class="header" href="#struct-types">Struct Types</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Diplomat Type</th><th>Python Type</th></tr>
+</thead>
+<tbody>
+<tr><td><code>#[diplomat::opaque] pub struct Type</code></td><td><code>class Type</code></td></tr>
+<tr><td><code>pub struct Type</code></td><td><code>class Type</code></td></tr>
+<tr><td><code>pub enum Type</code></td><td><code>class Type</code></td></tr>
+</tbody>
+</table>
+</div>
+<h4 id="opaques"><a class="header" href="#opaques">Opaques</a></h4>
+<p>These are Python classes bound to C++ through Nanobind.</p>
+<h4 id="structs"><a class="header" href="#structs">Structs</a></h4>
+<p>These are Python classes, bound similarly to opaques; however, each field is defined as properties on the class.</p>
+<p>Note that Nanobind treats structures in Python as classes that hold mutable references to an underlying C++ type. For this reason, Nanobind treats every struct as if it is a <a href="./cpp.html#mut-struct">mutable reference when generating C++ bindings</a>.
+However, if you still wish to access these structs mutably within your own method bindings, you will still need to tag them with <a href="../attrs/references.html"><code>#[diplomat::attr(*, mut_struct_ref)]</code></a>.</p>
+<h4 id="enums"><a class="header" href="#enums">Enums</a></h4>
+<p>These are also bound as classes, but with an inner bound <code>enum.Enum</code> class. The variants can be accessed through the parent <code>Type.*</code>, but the inner enum type can be accessed through <code>Type.Type</code>.</p>
+<h3 id="options"><a class="header" href="#options">Options</a></h3>
+<p>Any <code>Option&lt;T&gt;</code> type in Python is represented as a <code>T | None</code> value.</p>
+<h3 id="results"><a class="header" href="#results">Results</a></h3>
+<p>All <code>Result&lt;T, E&gt;</code> functions return <code>T</code>, and throw an <code>Exception</code> with <code>Exception.args</code> set to contain <code>E</code> converted into Python:</p>
+<pre><code class="language-py">try:
+    somelib.FailingFunction()
+except Exception as e:
+    error_type = e.args[0]
+</code></pre>
+<h3 id="slices"><a class="header" href="#slices">Slices</a></h3>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Diplomat Type</th><th>Python Type</th></tr>
+</thead>
+<tbody>
+<tr><td><code>&amp;[Primitive]</code></td><td><code>List[Primitive]</code> or <code>ndarray((N,), dtype=Primitive)</code></td></tr>
+<tr><td><code>&amp;str</code> or <code>&amp;DiplomatStr</code> or <code>DiplomatStrSlice</code> or <code>DiplomatUtf8StrSlice</code></td><td><code>str</code></td></tr>
+<tr><td><code>&amp;DiplomatStr16</code> or <code>DiplomatStr16Slice</code></td><td>Unsupported</td></tr>
+<tr><td><code>&amp;[&amp;str] or &amp;[DiplomatStrSlice]</code> or <code>&amp;[DiplomatUtf8StrSlice]</code></td><td><code>str</code></td></tr>
+<tr><td><code>&amp;[DiplomatStr16Slice]</code></td><td>Unsupported</td></tr>
+</tbody>
+</table>
+</div>
+<p>Slices in the Nanobind backend are <code>List</code> types. Generally, lists are copied on the C++-&gt;Python boundary, except for <a href="#numpy">numpy types</a> and <a href="#slices-copying-on-the-boundary">specialized slice types</a>.</p>
+<h4 id="numpy"><a class="header" href="#numpy">NumPy</a></h4>
+<p>If you have <code>ndarray</code> support through <code>NumPy</code>, and the inner slice type is supported by <code>dlpack</code>, Diplomat will return an <code>ndarray</code> type. These are passed by reference, and are not copied over the C++-&gt;Python boundary.</p>
+<h3 id="diplomatwrite"><a class="header" href="#diplomatwrite">DiplomatWrite</a></h3>
+<p>The Nanobind backend uses the <a href="./cpp.html#diplomatwrite">default C++ implementation for DiplomatWrite</a>, and so returns a <code>str</code> type.</p>
+<h3 id="callbacks"><a class="header" href="#callbacks">Callbacks</a></h3>
+<p>Implemented as any ordinary Python function (lambda or <code>def</code> will work). Callback returns are fallible, so any callback return must be bound with <a href="../attrs/fallible_callback_returns.html">ffi_error</a>.</p>
+<h3 id="traits"><a class="header" href="#traits">Traits</a></h3>
+<p>Trait methods are fallible here, so any returned trait must be bound with <a href="../attrs/fallible_callback_returns.html">ffi_error</a>.</p>
+<p>Implemented as classes that subclass a given <code>TraitName</code>. Python will raise a <code>TypeError</code> if <em>any</em> method is not implemented in the trait. If you attempt to <code>super()</code> a trait name, since the method is abstract, it will raise a <code>TypeError</code>. Any exceptions raised while executing in Rust code will be returned as an FFI error.</p>
+<p>There is an additional <code>TraitName_PyBase</code> class that Nanobind generates. This is purely for stubgen purposes: Nanobind has to bind the <a href="./cpp.html#traits">underlying abstract class</a> for stubgen, and create an implementation class for binding the abstract methods from Python.</p>
 <h2 id="debugging"><a class="header" href="#debugging">Debugging</a></h2>
 <p>Nanobind <code>.pyd</code> files can be stepped through using any debugger. As long as you’ve built the <code>.pyd</code> file with debugging symbols, you can attach to any running Python process that has the <code>.pyd</code> imported. Here are the steps:</p>
 <ol>
@@ -183,9 +267,9 @@
 <li>Attach the debugger to the process (for LLDB, this is <code>lldb -p PID</code>).</li>
 <li>Add breakpoints as you would normally.</li>
 </ol>
-<h2 id="slices"><a class="header" href="#slices">Slices</a></h2>
-<h3 id="mutable-slices-and-copying-on-the-boundary"><a class="header" href="#mutable-slices-and-copying-on-the-boundary">Mutable Slices and Copying on the Boundary</a></h3>
-<p>Nanobind supports taking mutable slices:</p>
+<p>Alternately, you can use <a href="https://docs.python.org/3/library/functions.html#breakpoint"><code>breakpoint()</code></a> right before the code you wish to debug, and follow from step 2 above.</p>
+<h2 id="slices-copying-on-the-boundary"><a class="header" href="#slices-copying-on-the-boundary">Slices Copying on the Boundary</a></h2>
+<p>Nanobind supports taking slices:</p>
 <pre><code>#[diplomat::bridge]
 mod ffi {
     #[diplomat::attr(auto, abi_compatible)]
@@ -195,39 +279,159 @@ mod ffi {
     }
 
     impl Foo {
-        pub fn takes_mut_slice(sl : &amp;mut [Foo]) {
+        pub fn takes_slice(sl : &amp;[Foo]) {
             for s in sl.iter() {
-                s.x += 1;
+                println!("{}", s.x);
             }
         }
     }
 }
 </code></pre>
-<p>However, if you attempt to mutate the slice in Python:</p>
-<pre><code class="language-python">f = [somelib.Foo(x=10,y=10)]
-print([foo.x for foo in f])
-somelib.Foo.takes_mut_slice(f)
-print([foo.x for foo in f])
-</code></pre>
-<p>You will get an error:</p>
-<pre><code>[10]
-TypeError: takes_mut_slice(): incompatible function arguments. The following argument types are supported:
-    1. mutable_slice(s: collections.abc.Sequence[somelib.somelib.Foo]) -&gt; None
-Invoked with types: list
-</code></pre>
-<p>Diplomat’s bindings will automatically do conversion for immutable slice types, by copying to a list type that Nanobind understands. However, if you wish to pass over a reference to a given list, Diplomat will automatically generate a <code>TSlice</code> type (i.e., <code>somelib.FooSlice</code>):</p>
+<p>However, note that this is a <em>copy</em> of the slice. Diplomat’s bindings will automatically do conversion for immutable slice types, by copying to a list type that Nanobind understands. However, if you wish to pass over a reference to a given list, Diplomat will automatically generate a <code>TSlice</code> type (i.e., <code>somelib.FooSlice</code>):</p>
 <pre><code class="language-python">f = somelib.FooSlice([somelib.Foo(x=10, y=10)])
-print([foo.x for foo in f])
-somelib.Foo.takes_mut_slice(f)
-print([foo.x for foo in f])
+somelib.Foo.takes_slice(f)
 </code></pre>
-<p>Which prints the correct result:</p>
-<pre><code>[10]
-[11]
-</code></pre>
-<h4 id="explanation"><a class="header" href="#explanation">Explanation</a></h4>
+<p>Which will copy the slice’s memory.</p>
+<h3 id="explanation"><a class="header" href="#explanation">Explanation</a></h3>
 <p>Converting Rust types to and from Python is not straightforward. Every <code>list</code> object in Python is a <a href="https://docs.python.org/3/c-api/list.html">sequence of <code>PyObject</code> types</a> in C. For passing information to and from Rust, this makes straightforward conversion extremely difficult. Instead, nanobind will copy Python types into C++ memory layouts it understands.</p>
 <p>This is why we the <code>somelib.FooSlice</code> type exists. In nanobind terminology, this is a <a href="https://nanobind.readthedocs.io/en/latest/exchanging.html#option-2-bindings">bound object</a>, or a class that exists in Python that allows us to easily grab its memory and manipulate in C++. Any <code>list</code> you pass into a parameter that takes <code>&amp;[Foo]</code> as an input type will copy the contents of the <code>list</code> upon conversion into C/C++ into <code>somelib.FooSlice</code>.</p>
+<h2 id="async-nanobind"><a class="header" href="#async-nanobind">Async Nanobind</a></h2>
+<p>Diplomat’s Nanobind backend is currently based on <a href="https://wiki.python.org/moin/GlobalInterpreterLock">Python’s GIL</a> for much of its codegen and templating. This keeps synchronicity relatively straightforward, but for asynchronous functions this may require extra configuration on your end.</p>
+<p>Say we have two methods:</p>
+<pre><code class="language-rs">#[diplomat::bridge]
+mod ffi {
+    pub fn long_running_async() {
+        calls_long_running_async();
+    }
+
+    pub fn run_callback(f : impl Fn()) {
+        f();
+    }
+}
+</code></pre>
+<p>And we call these methods in order:</p>
+<pre><code class="language-py">somelib.long_running_async()
+somelib.run_callback(lambda: pass)
+</code></pre>
+<p>Then the GIL will lock and the program will freeze. When Rust calls into <code>f()</code>, Nanobind attempts to acquire the GIL, which is already held by <code>somelib.long_running_async</code>.</p>
+<p>Nanobind generally requires the GIL <a href="https://github.com/wjakob/nanobind/blob/73223b97e28909eb8fc7e83213c352c020a854f6/src/common.cpp#L282">when attempting to call into C++</a>, which in turn will hold the GIL while our async Rust function is being run.</p>
+<p>To get around this, for any functions which may be long running and asynchronous, you will want to use <a href="../attrs/custom_extra_code.html">Custom Extra Code</a> to mark a method with the <a href="https://nanobind.readthedocs.io/en/latest/api_core.html#gil-management"><code>nb::call_guard&lt;nb::gil_scoped_release&gt;</code></a> attribute. With this attribute present, Nanobind will call <a href="https://docs.python.org/3/c-api/threads.html#c.PyEval_SaveThread">PyEval_SaveThread</a> at the start of the bound method, and will call <a href="https://docs.python.org/3/c-api/threads.html#c.PyEval_RestoreThread">PyEval_RestoreThread</a> when the bound method has finished executing.</p>
+<p>Asynchronous methods through Nanobind currently require configuration through <code>custom_extra_code</code> as Diplomat currently makes no guarantees about the consequences of releasing the GIL when calling into asynchronous Rust. It is up to you to ensure correctness.</p>
+<p>See <a href="https://github.com/rust-diplomat/diplomat/issues/1196">https://github.com/rust-diplomat/diplomat/issues/1196</a> for more.</p>
+<h2 id="supports"><a class="header" href="#supports">Supports</a></h2>
+<ul>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/namespace.html">Namespaces</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Memory Sharing</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> Non Exhaustive Structs</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Method Overloading</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> UTF8 Strings</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> UTF16 Strings</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../types/slices.html">Static Slices</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/default_value.html#default-value">Defaults</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/constructors.html">Constructors</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> Named Constructors</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Fallible Constructors</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/accessors.html">Getters/Setters</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Static Getters/Setters</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/stringifiers.html">Stringifiers</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/comparators.html">Comparators</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/comparators.html#partial-comparisons">Partial Comparators</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/iterators.html">Iterators</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/iterators.html#marking-a-type-as-an-iterable">Iterables</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/indexing.html">Indexers</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/arithmetic.html">Arithmetic</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../types/option.html">Options</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../types/callbacks.html">Callbacks</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../types/traits.html">Traits</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> Custom Errors</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Traits are Send</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Traits are Sync</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> Generate Mocking Interface</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../types/slices.html#primitive-structs">ABI Compatible Structs</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Struct References. See <a href="../attrs/references.html">References for more</a>.</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Mutable Struct References. See <a href="../attrs/references.html">References for more</a>.</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Free Functions</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/custom_extra_code.html">Custom Bindings</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> Owned Slices</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../attrs/default_value.html#default-arguments">Default Arguments</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox"> Mutable Slices (<code>&amp;mut [T]</code>)</p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> <a href="../types/slices.html#opaques">Opaque Slices</a></p>
+</li>
+<li>
+<p><input disabled="" type="checkbox" checked=""> Tuples. See <a href="../attrs/tuples.html">tuples for more</a></p>
+</li>
+</ul>
 
                     </main>
 
@@ -267,11 +471,11 @@ print([foo.x for foo in f])
 
         <script src="../elasticlunr-ef4e11c1.min.js"></script>
         <script src="../mark-09e88c2c.min.js"></script>
-        <script src="../searcher-c2a407aa.js"></script>
+        <script src="../searcher-09f2665d.js"></script>
 
         <script src="../clipboard-1626706a.min.js"></script>
         <script src="../highlight-abc7f01d.js"></script>
-        <script src="../book-a0b12cfe.js"></script>
+        <script src="../book-609e4cb8.js"></script>
 
         <!-- Custom JS scripts -->
 

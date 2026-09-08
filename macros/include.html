@@ -3,7 +3,7 @@
     <head>
         <!-- Book generated using mdBook -->
         <meta charset="UTF-8">
-        <title>Custom Extra Code - The Diplomat Book</title>
+        <title>Including Macros - The Diplomat Book</title>
 
 
         <!-- Custom HTML head -->
@@ -174,47 +174,38 @@
 
                 <div id="mdbook-content" class="content">
                     <main>
-                        <h1 id="custom-extra-code"><a class="header" href="#custom-extra-code">Custom Extra Code</a></h1>
-<p>Supported by <code>cpp</code>, and <code>nanobind</code>, queried with <code>#[diplomat::cfg(supports=custom_bindings)]</code></p>
-<p>For developers who have a greater understanding of how Diplomat backends function, you are able to mark <code>enum</code> and <code>struct</code> definitions to insert custom extra binding code:</p>
-<pre><code class="language-rs">#[diplomat::bridge]
-mod ffi {
-    #[diplomat::attr(cpp, custom_extra_code(source="void extraFunc();", location="def_block"))]
-    pub struct SomeType {}
+                        <h1 id="including-macros"><a class="header" href="#including-macros">Including Macros</a></h1>
+<p>Diplomat is able to prepend the contents of any file to a <code>#[diplomat::bridge]</code> module. This is useful for being able to include and use macros across different modules:</p>
+<h2 id="srcshared_macrors"><a class="header" href="#srcshared_macrors"><code>src/shared_macro.rs</code></a></h2>
+<pre><code class="language-rs">#[diplomat::macro_rules]
+#[macro_export]
+macro_rules! shared_macro {
+    /* ... */
 }
 </code></pre>
-<p>You can currently specify three locations:</p>
-<ul>
-<li><code>def_block</code>
-<ul>
-<li>Extra code inserted into the class <em>definition</em> of a type.</li>
-<li>Supported by C++/Nanobind.</li>
-</ul>
-</li>
-<li><code>impl_block</code>
-<ul>
-<li>Extra code inserted into the class <em>implementation</em> of a type.</li>
-<li>Supported by C++/Nanobind.</li>
-</ul>
-</li>
-<li><code>init_block</code>
-<ul>
-<li>Extra code inserted into any initialization code for a type.</li>
-<li>Supported by nanobind.</li>
-</ul>
-</li>
-</ul>
-<p>You can also either specify <code>source="SOURCE CODE"</code> or <code>file=/path/to/file</code> for where to grab the code from. For files, you can customize the directory Diplomat searches from with the <code>custom_extra_code_location</code> config.</p>
+<h2 id="srcmacro_users"><a class="header" href="#srcmacro_users"><code>src/macro_use.rs</code></a></h2>
+<pre><code class="language-rs">// Grab shared_macro definition:
+use super::*;
+
+#[diplomat::bridge]
+#[diplomat::include("src/shared_macro.rs")]
+mod ffi {
+    super::shared_macro!();
+}
+</code></pre>
+<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
+<p><code>#[diplomat::bridge]</code> is evaluated by proc_macro individually, so every module that uses <code>#[diplomat::bridge]</code> that wants to use the same macros must each have a separate <code>#[diplomat::include]</code> declaration.</p>
+<p><code>#[diplomat::include(...)]</code> evaluates a path always relative to <code>Cargo.toml</code>. This is detected automatically when building your library, but may need to be set when using <code>diplomat_tool</code> through the <code>manifest_dir</code> <a href="../config.html">config</a>.</p>
 
                     </main>
 
                     <nav class="nav-wrapper" aria-label="Page navigation">
                         <!-- Mobile navigation buttons -->
-                            <a rel="prev" href="../attrs/fallible_callback_returns.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                            <a rel="prev" href="../macros.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                             </a>
 
-                            <a rel="next prefetch" href="../safety.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                            <a rel="next prefetch" href="../abi.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                                 <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                             </a>
 
@@ -224,11 +215,11 @@ mod ffi {
             </div>
 
             <nav class="nav-wide-wrapper" aria-label="Page navigation">
-                    <a rel="prev" href="../attrs/fallible_callback_returns.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                    <a rel="prev" href="../macros.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M41.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.3 256 246.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"/></svg></span>
                     </a>
 
-                    <a rel="next prefetch" href="../safety.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                    <a rel="next prefetch" href="../abi.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
                         <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M278.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-160 160c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L210.7 256 73.4 118.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l160 160z"/></svg></span>
                     </a>
             </nav>
